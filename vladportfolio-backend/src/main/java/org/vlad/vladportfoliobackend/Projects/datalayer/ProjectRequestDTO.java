@@ -10,4 +10,5 @@ public class ProjectRequestDTO {
     private String tag;
     private String description;
     private java.util.List<String> skills;
+    private String githubUrl;
 }

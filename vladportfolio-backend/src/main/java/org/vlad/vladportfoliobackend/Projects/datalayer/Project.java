@@ -15,5 +15,6 @@ public class Project {
     private String tag;
     private String description;
     private String skills;
+    private String githubUrl;
     private boolean active = true;
 }

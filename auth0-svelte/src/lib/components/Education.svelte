@@ -217,6 +217,41 @@
 				<p>No education information available.</p>
 			{/if}
 		</div>
+	{:else if $isAdmin}
+		<div class="admin-grid">
+			{#each displayItems as item (item.id)}
+				<article class="card education-card grid-card" class:inactive-card={!item.active}>
+					<div class="edu-icon">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+							<path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+							<path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />
+						</svg>
+					</div>
+					<h3 class="h3 edu-institution">{item.institutionName}</h3>
+					<p class="p muted edu-degree">{item.degree}</p>
+
+					<div class="admin-section">
+						<div class="approval-badge {item.active ? 'approved' : 'pending'}">
+							{item.active ? 'Active' : 'Inactive'}
+						</div>
+						<div class="admin-actions">
+							<button
+								class="btn-approve {item.active ? 'hide' : 'approve'}"
+								on:click={() => toggleActive(item)}
+							>
+								{item.active ? 'Hide' : 'Show'}
+							</button>
+							<button class="btn-edit" on:click={() => openEditModal(item)}>
+								Edit
+							</button>
+							<button class="btn-delete" on:click={() => deleteEducation(item.id)}>
+								Delete
+							</button>
+						</div>
+					</div>
+				</article>
+			{/each}
+		</div>
 	{:else}
 		<div class="carousel-wrapper">
 			<button
@@ -245,28 +280,6 @@
 						</div>
 						<h3 class="h3 edu-institution">{item.institutionName}</h3>
 						<p class="p muted edu-degree">{item.degree}</p>
-
-						{#if $isAdmin}
-							<div class="admin-section">
-								<div class="approval-badge {item.active ? 'approved' : 'pending'}">
-									{item.active ? 'Active' : 'Inactive'}
-								</div>
-								<div class="admin-actions">
-									<button
-										class="btn-approve {item.active ? 'hide' : 'approve'}"
-										on:click={() => toggleActive(item)}
-									>
-										{item.active ? 'Hide' : 'Show'}
-									</button>
-									<button class="btn-edit" on:click={() => openEditModal(item)}>
-										Edit
-									</button>
-									<button class="btn-delete" on:click={() => deleteEducation(item.id)}>
-										Delete
-									</button>
-								</div>
-							</div>
-						{/if}
 					</article>
 				{/each}
 			</div>
@@ -360,6 +373,21 @@
 		padding: 3rem;
 		color: #666;
 		font-size: 1.1rem;
+	}
+
+	.admin-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 18px;
+		margin-top: 32px;
+	}
+	@media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
+	@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
+
+	.grid-card {
+		flex: unset;
+		max-width: unset;
+		scroll-snap-align: unset;
 	}
 
 	.carousel-wrapper {

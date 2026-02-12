@@ -12,7 +12,7 @@
 
 <script lang="ts">
   import { onMount } from "svelte";
-  import { isAuthenticated, isAdmin, getToken } from "$lib/stores/auth";
+  import { isAuthenticated, isAdmin, getToken, login } from "$lib/stores/auth";
 
   let scrollContainer: HTMLDivElement;
   let canScrollLeft = false;
@@ -31,6 +31,7 @@
   let draftName = "";
   let draftContent = "";
   let draftRating = 5;
+  let successOpen = false;
 
   const RATING_MAP: Record<number, string> = {
     1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE"
@@ -84,11 +85,15 @@
   }
 
   $: if (typeof document !== 'undefined') {
-    if (editOpen) {
+    if (editOpen || successOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
+  }
+
+  function closeSuccess() {
+    successOpen = false;
   }
 
   async function saveReview() {
@@ -118,6 +123,7 @@
 
       await fetchReviews();
       closeEdit();
+      successOpen = true;
     } catch (e: any) {
       error = e?.message ?? "Failed to save review";
     } finally {
@@ -141,7 +147,10 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape" && editOpen) closeEdit();
+    if (e.key === "Escape") {
+      if (successOpen) closeSuccess();
+      else if (editOpen) closeEdit();
+    }
   }
 </script>
 
@@ -153,8 +162,8 @@
       <h2 class="h2">{title}</h2>
     </div>
     <p class="lead">{subtitle}</p>
-    {#if $isAuthenticated && !$isAdmin}
-      <button class="btn-new-review" type="button" on:click={openNewReview}>
+    {#if !$isAdmin}
+      <button class="btn-new-review" type="button" on:click={() => $isAuthenticated ? openNewReview() : login()}>
         + New Review
       </button>
     {/if}
@@ -164,6 +173,39 @@
     <p class="p" style="text-align:center;opacity:0.6;">Loading reviews...</p>
   {:else if visibleReviews.length === 0}
     <p class="p" style="text-align:center;opacity:0.6;">No reviews yet.</p>
+  {:else if $isAdmin}
+    <div class="admin-grid">
+      {#each visibleReviews as review (review.id)}
+        <article class="card review-card grid-card" class:unapproved={!review.approved}>
+          <div class="admin-badge-row">
+            <span class="approval-badge" class:approved={review.approved} class:pending={!review.approved}>
+              {review.approved ? "Approved" : "Pending"}
+            </span>
+            <button
+              class="btn-approve"
+              class:approve={!review.approved}
+              class:hide={review.approved}
+              type="button"
+              on:click={() => toggleApproval(review)}
+            >
+              {review.approved ? "Hide" : "Approve"}
+            </button>
+          </div>
+          <div class="review-meta">
+            <p class="p review-name">{review.name}</p>
+            <p class="p small muted">{review.role}</p>
+          </div>
+          <p class="p review-content">{review.content}</p>
+          <div class="stars" aria-label="{review.rating} out of 5 stars">
+            {#each Array(5) as _, i}
+              <svg class="star" class:filled={i < review.rating} viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="12 2 15.09 10.26 24 10.35 17.77 16.01 19.85 24.29 12 18.54 4.15 24.29 6.23 16.01 0 10.35 8.91 10.26"/>
+              </svg>
+            {/each}
+          </div>
+        </article>
+      {/each}
+    </div>
   {:else}
     <div class="carousel-wrapper">
       <button
@@ -183,23 +225,7 @@
         on:scroll={checkScroll}
       >
         {#each visibleReviews as review (review.id)}
-          <article class="card review-card" class:unapproved={!review.approved && $isAdmin}>
-            {#if $isAdmin}
-              <div class="admin-badge-row">
-                <span class="approval-badge" class:approved={review.approved} class:pending={!review.approved}>
-                  {review.approved ? "Approved" : "Pending"}
-                </span>
-                <button
-                  class="btn-approve"
-                  class:approve={!review.approved}
-                  class:hide={review.approved}
-                  type="button"
-                  on:click={() => toggleApproval(review)}
-                >
-                  {review.approved ? "Hide" : "Approve"}
-                </button>
-              </div>
-            {/if}
+          <article class="card review-card">
             <div class="review-meta">
               <p class="p review-name">{review.name}</p>
               <p class="p small muted">{review.role}</p>
@@ -293,6 +319,24 @@
   </div>
 {/if}
 
+{#if successOpen}
+  <div class="modal-layer" role="presentation" on:click={closeSuccess}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_interactive_supports_focus -->
+    <div class="modal success-modal" role="dialog" aria-modal="true" on:click|stopPropagation>
+      <div class="success-body">
+        <span class="success-icon">&#10003;</span>
+        <h3 class="h3" style="margin:0;">Thank you!</h3>
+        <p class="p" style="margin:8px 0 0;opacity:0.7;text-align:center;">
+          Your review has been submitted and will appear once approved by the admin.
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" type="button" on:click={closeSuccess}>Got it</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .carousel-wrapper {
     display: flex;
@@ -336,6 +380,16 @@
     opacity: 0.6;
     border: 1px dashed rgba(255, 165, 0, 0.5);
   }
+
+  .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 32px;
+  }
+  @media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
+  .grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
 
   @media (max-width: 980px) {
     .reviews-carousel {
@@ -626,5 +680,32 @@
 
   .btn.primary:hover:not(:disabled) {
     background: rgba(56, 197, 94, 0.25);
+  }
+
+  /* ========== SUCCESS MODAL ========== */
+  .success-modal {
+    width: min(400px, 100%);
+    text-align: center;
+  }
+
+  .success-body {
+    padding: 32px 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .success-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(56, 197, 94, 0.15);
+    color: var(--green);
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 16px;
   }
 </style>

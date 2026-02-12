@@ -16,6 +16,7 @@ public class ProjectResponseDTO {
     private String badge;
     private String description;
     private List<String> tags;
+    private String githubUrl;
     private boolean active;
 
     public static ProjectResponseDTO from(Project project) {
@@ -25,6 +26,7 @@ public class ProjectResponseDTO {
                 project.getTag(),
                 project.getDescription(),
                 JsonUtils.fromJson(project.getSkills()),
+                project.getGithubUrl(),
                 project.isActive()
         );
     }

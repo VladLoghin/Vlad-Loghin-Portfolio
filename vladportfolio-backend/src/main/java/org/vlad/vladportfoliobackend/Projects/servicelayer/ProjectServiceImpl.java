@@ -20,7 +20,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Flux<ProjectResponseDTO> getAllProjects() {
-        return projectRepository.findAll()
+        return projectRepository.findAllByOrderByIdAsc()
                 .map(ProjectResponseDTO::from);
     }
 
@@ -31,6 +31,7 @@ public class ProjectServiceImpl implements ProjectService {
         entity.setTag(request.getTag());
         entity.setDescription(request.getDescription());
         entity.setSkills(JsonUtils.toJson(request.getSkills()));
+        entity.setGithubUrl(request.getGithubUrl());
         return projectRepository.save(entity)
                 .map(ProjectResponseDTO::from);
     }
@@ -51,6 +52,9 @@ public class ProjectServiceImpl implements ProjectService {
                     }
                     if (request.getSkills() != null) {
                         existing.setSkills(JsonUtils.toJson(request.getSkills()));
+                    }
+                    if (request.getGithubUrl() != null) {
+                        existing.setGithubUrl(request.getGithubUrl());
                     }
                     return projectRepository.save(existing);
                 })

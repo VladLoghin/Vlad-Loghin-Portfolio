@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS projects (
     tag TEXT,
     description TEXT,
     skills TEXT DEFAULT '[]',
+    github_url TEXT,
     active BOOLEAN DEFAULT true
 );
 
@@ -50,6 +51,14 @@ CREATE TABLE IF NOT EXISTS sections (
 CREATE TABLE IF NOT EXISTS cv_documents (
     id BIGSERIAL PRIMARY KEY,
     language TEXT NOT NULL UNIQUE,
+    filename TEXT,
+    data BYTEA,
+    content_type TEXT,
+    uploaded_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS profile_images (
+    id BIGSERIAL PRIMARY KEY,
     filename TEXT,
     data BYTEA,
     content_type TEXT,

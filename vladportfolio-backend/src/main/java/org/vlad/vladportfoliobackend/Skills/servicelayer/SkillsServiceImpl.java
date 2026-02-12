@@ -20,7 +20,7 @@ public class SkillsServiceImpl implements SkillsService {
 
     @Override
     public Flux<SkillsResponseDTO> getAllSkills() {
-        return skillsRepository.findAll()
+        return skillsRepository.findAllByOrderByIdAsc()
                 .map(SkillsResponseDTO::from);
     }
 
