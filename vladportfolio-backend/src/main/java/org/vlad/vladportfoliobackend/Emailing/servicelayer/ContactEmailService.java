@@ -11,6 +11,11 @@ import org.vlad.vladportfoliobackend.Emailing.datalayer.EmailRequestModel;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import java.util.Hashtable;
+
 @Service
 @RequiredArgsConstructor
 public class ContactEmailService {
@@ -25,6 +30,11 @@ public class ContactEmailService {
 
     public Mono<Void> sendContactEmail(EmailRequestModel request) {
         return Mono.fromCallable(() -> {
+            String domain = request.getEmail().substring(request.getEmail().indexOf('@') + 1);
+            if (!hasMxRecord(domain)) {
+                throw new InvalidEmailDomainException("The email domain '" + domain + "' does not appear to accept mail.");
+            }
+
             MimeMessage message = mailSender.createMimeMessage();
 
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -39,6 +49,19 @@ public class ContactEmailService {
             mailSender.send(message);
             return (Void) null;
         }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
+    private boolean hasMxRecord(String domain) {
+        try {
+            Hashtable<String, String> env = new Hashtable<>();
+            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+            DirContext ctx = new InitialDirContext(env);
+            Attributes attrs = ctx.getAttributes(domain, new String[]{"MX"});
+            ctx.close();
+            return attrs.get("MX") != null && attrs.get("MX").size() > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String buildHtml(EmailRequestModel request) {

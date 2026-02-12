@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { browser } from "$app/environment";
   import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken } from "$lib/stores/auth";
   import Projects from "$lib/components/Projects.svelte";
   import Hobbies from "$lib/components/Hobbies.svelte";
@@ -88,7 +89,7 @@
   $: aboutBullets = aboutSections.find(s => s.type === "BULLETS");
   $: aboutTags = aboutSections.find(s => s.type === "TAGS");
 
-  let showContent = typeof sessionStorage !== "undefined" && sessionStorage.getItem("portfolioRevealed") === "true";
+  let showContent = browser && sessionStorage.getItem('portfolio-revealed') === 'true';
   let rippleActive = false;
   let mobileMenuOpen = false;
 
@@ -100,7 +101,7 @@
     rippleActive = true;
     setTimeout(() => {
       showContent = true;
-      sessionStorage.setItem("portfolioRevealed", "true");
+      sessionStorage.setItem('portfolio-revealed', 'true');
       requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" as any }));
     }, 600);
   }
@@ -161,6 +162,43 @@
     }
   }
 
+  // --- Profile image ---
+  let profileImgKey = 0;
+  $: profileImgUrl = `/api/public/profile-image?_=${profileImgKey}`;
+  let profileUploading = false;
+  let profileUploadStatus: "idle" | "success" | "error" = "idle";
+
+  async function handleProfileImageUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    profileUploading = true;
+    profileUploadStatus = "idle";
+
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/profile-image/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+      profileUploadStatus = "success";
+      profileImgKey++;
+      setTimeout(() => (profileUploadStatus = "idle"), 3000);
+    } catch {
+      profileUploadStatus = "error";
+    } finally {
+      profileUploading = false;
+      input.value = "";
+    }
+  }
+
   // --- CV viewer ---
   let cvLang: "en" | "fr" = "en";
   let cvKey = 0; // bump to force iframe reload after upload
@@ -207,9 +245,19 @@
   let contactMessage = "";
   let contactSending = false;
   let contactStatus: "idle" | "success" | "error" = "idle";
+  let contactEmailError = "";
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   async function handleContactSubmit(e: Event) {
     e.preventDefault();
+    contactEmailError = "";
+
+    if (!emailRegex.test(contactEmail)) {
+      contactEmailError = "Please enter a valid email address.";
+      return;
+    }
+
     contactSending = true;
     contactStatus = "idle";
 
@@ -224,7 +272,14 @@
         })
       });
 
-      if (!res.ok) throw new Error("Failed to send");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (res.status === 400 && data?.error) {
+          contactEmailError = data.error;
+          return;
+        }
+        throw new Error("Failed to send");
+      }
       contactStatus = "success";
       contactName = "";
       contactEmail = "";
@@ -483,8 +538,35 @@
 
           <div class="about-image">
             <div class="image-placeholder">
-              <img src="/profile.jpg" alt="Vlad Loghin" />
+              <img src={profileImgUrl} alt="Vlad Loghin" />
+              {#if $isAdmin}
+                <label class="profile-pen-btn" aria-label="Change profile photo">
+                  {#if profileUploading}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-icon">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                  {:else}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+                    </svg>
+                  {/if}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    on:change={handleProfileImageUpload}
+                    disabled={profileUploading}
+                    hidden
+                  />
+                </label>
+              {/if}
             </div>
+            {#if profileUploadStatus === "success"}
+              <p class="cv-upload-msg success">Photo updated!</p>
+            {/if}
+            {#if profileUploadStatus === "error"}
+              <p class="cv-upload-msg error">Upload failed. Please try again.</p>
+            {/if}
           </div>
         </div>
       </section>
@@ -612,7 +694,10 @@
                 <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
               </div>
               <div class="form-group">
-                <input class="input" type="email" placeholder="Your email" required bind:value={contactEmail} />
+                <input class="input" class:input-error={contactEmailError} type="email" placeholder="Your email" required bind:value={contactEmail} on:input={() => contactEmailError = ""} />
+                {#if contactEmailError}
+                  <p class="field-error">{contactEmailError}</p>
+                {/if}
               </div>
               <div class="form-group">
                 <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
@@ -1053,6 +1138,18 @@
     margin: 0 0 4px 0;
   }
 
+  .input-error {
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+  }
+
+  .field-error {
+    color: #d32f2f;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 4px 0 0;
+  }
+
   .contact-success {
     color: var(--green-d);
     font-weight: 600;
@@ -1202,6 +1299,46 @@
   .cv-tab:hover:not(.active) {
     background: rgba(56, 197, 94, 0.1);
     color: var(--green-d);
+  }
+
+  .image-placeholder {
+    position: relative;
+  }
+
+  .profile-pen-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.85);
+    color: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: transform 0.15s ease, background 0.15s ease;
+    z-index: 2;
+  }
+
+  .profile-pen-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.08);
+  }
+
+  .profile-pen-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .spin-icon {
+    animation: pen-spin 1s linear infinite;
+  }
+
+  @keyframes pen-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   .cv-upload-btn {

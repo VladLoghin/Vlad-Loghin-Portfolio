@@ -29,6 +29,7 @@ export async function initializeAuth() {
       clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
       authorizationParams: {
         redirect_uri: window.location.origin,
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
         scope: 'openid profile email'
       },
       useRefreshTokens: true,
@@ -62,7 +63,7 @@ export async function initializeAuth() {
 
       let roles: string[] = [];
       
-      const namespace = 'https://vladtech.com/roles';
+      const namespace = 'https://vladloghin.codes/roles';
       if (userData?.[namespace]) {
         roles = userData[namespace];
       }
@@ -95,8 +96,19 @@ export async function initializeAuth() {
 
 export async function login() {
   const client = get(auth0Client);
-  if (client) {
+  if (!client) {
+    console.error('Auth0 client not initialized — check your VITE_AUTH0_DOMAIN, VITE_AUTH0_CLIENT_ID, and VITE_AUTH0_AUDIENCE env vars');
+    return;
+  }
+  try {
+    console.log('Redirecting to Auth0...', {
+      domain: import.meta.env.VITE_AUTH0_DOMAIN,
+      clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE
+    });
     await client.loginWithRedirect();
+  } catch (err) {
+    console.error('loginWithRedirect failed:', err);
   }
 }
 

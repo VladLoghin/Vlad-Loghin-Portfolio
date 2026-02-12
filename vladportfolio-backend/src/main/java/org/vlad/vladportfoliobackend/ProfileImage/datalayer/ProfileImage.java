@@ -1,0 +1,22 @@
+package org.vlad.vladportfoliobackend.ProfileImage.datalayer;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
+
+import java.time.LocalDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Table("profile_images")
+public class ProfileImage {
+    @Id
+    private Long id;
+    private String filename;
+    private byte[] data;
+    private String contentType;
+    private LocalDateTime uploadedAt;
+}

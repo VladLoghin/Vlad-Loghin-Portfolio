@@ -19,7 +19,7 @@ public class EducationServiceImpl implements EducationService {
 
     @Override
     public Flux<EducationResponseDTO> getAllEducation() {
-        return educationRepository.findAll()
+        return educationRepository.findAllByOrderByIdAsc()
                 .map(EducationResponseDTO::from);
     }
 

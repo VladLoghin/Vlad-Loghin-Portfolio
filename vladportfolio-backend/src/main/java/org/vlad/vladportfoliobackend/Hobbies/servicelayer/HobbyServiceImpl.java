@@ -20,7 +20,7 @@ public class HobbyServiceImpl implements HobbyService {
 
     @Override
     public Flux<HobbyResponseDTO> getAllHobbies() {
-        return hobbyRepository.findAll()
+        return hobbyRepository.findAllByOrderByIdAsc()
                 .map(HobbyResponseDTO::from);
     }
 

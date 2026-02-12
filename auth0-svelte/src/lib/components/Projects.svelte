@@ -5,6 +5,7 @@
 		badge?: string;
 		description: string;
 		tags?: string[];
+		githubUrl?: string;
 		active: boolean;
 	};
 </script>
@@ -22,7 +23,8 @@
 		projectName: '',
 		tag: '',
 		description: '',
-		skills: [] as string[]
+		skills: [] as string[],
+		githubUrl: ''
 	};
 	let skillsInput = '';
 
@@ -50,7 +52,7 @@
 
 	function openCreateModal() {
 		editingItem = null;
-		formData = { projectName: '', tag: '', description: '', skills: [] };
+		formData = { projectName: '', tag: '', description: '', skills: [], githubUrl: '' };
 		skillsInput = '';
 		showModal = true;
 		document.body.style.overflow = 'hidden';
@@ -62,7 +64,8 @@
 			projectName: item.name,
 			tag: item.badge || '',
 			description: item.description,
-			skills: [...(item.tags || [])]
+			skills: [...(item.tags || [])],
+			githubUrl: item.githubUrl || ''
 		};
 		skillsInput = (item.tags || []).join(', ');
 		showModal = true;
@@ -90,7 +93,8 @@
 			projectName: formData.projectName,
 			tag: formData.tag,
 			description: formData.description,
-			skills: skillsInput.split(',').map(s => s.trim()).filter(Boolean)
+			skills: skillsInput.split(',').map(s => s.trim()).filter(Boolean),
+			githubUrl: formData.githubUrl || null
 		};
 
 		try {
@@ -189,6 +193,63 @@
 				<p>No projects available.</p>
 			{/if}
 		</div>
+	{:else if $isAdmin}
+		<div class="admin-grid">
+			{#each displayItems as project (project.id)}
+				<article class="card project-card grid-card" class:inactive-card={!project.active}>
+					<div class="project-top">
+						<h3 class="h3">{project.name}</h3>
+						<div class="project-actions-top">
+							{#if project.badge}
+								<span class="badge">{project.badge}</span>
+							{/if}
+							<button class="pen-button" type="button" aria-label="Edit {project.name}" on:click={() => openEditModal(project)}>
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+									<path d="M12 20h9" />
+									<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
+								</svg>
+							</button>
+						</div>
+					</div>
+
+					<p class="p muted">{project.description}</p>
+
+					{#if project.tags?.length}
+						<div class="tag-row">
+							{#each project.tags as tag}
+								<span class="tag">{tag}</span>
+							{/each}
+						</div>
+					{/if}
+
+					{#if project.githubUrl}
+						<a class="github-link" href={project.githubUrl} target="_blank" rel="noreferrer">
+							<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+								<path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+							</svg>
+							View on GitHub
+						</a>
+					{/if}
+
+					<div class="admin-section">
+						<div class="approval-badge {project.active ? 'approved' : 'pending'}">
+							{project.active ? 'Active' : 'Inactive'}
+						</div>
+						<div class="admin-actions">
+							<button
+								class="btn-approve {project.active ? 'hide' : 'approve'}"
+								on:click={() => toggleActive(project)}
+							>
+								{project.active ? 'Hide' : 'Show'}
+							</button>
+							<button class="btn-delete" on:click={() => deleteProject(String(project.id))}>
+								Delete
+							</button>
+						</div>
+					</div>
+				</article>
+			{/each}
+		</div>
 	{:else}
 		<div class="carousel-wrapper">
 			<button
@@ -211,14 +272,6 @@
 								{#if project.badge}
 									<span class="badge">{project.badge}</span>
 								{/if}
-								{#if $isAdmin}
-									<button class="pen-button" type="button" aria-label="Edit {project.name}" on:click={() => openEditModal(project)}>
-										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-											<path d="M12 20h9" />
-											<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5z" />
-										</svg>
-									</button>
-								{/if}
 							</div>
 						</div>
 
@@ -232,23 +285,13 @@
 							</div>
 						{/if}
 
-						{#if $isAdmin}
-							<div class="admin-section">
-								<div class="approval-badge {project.active ? 'approved' : 'pending'}">
-									{project.active ? 'Active' : 'Inactive'}
-								</div>
-								<div class="admin-actions">
-									<button
-										class="btn-approve {project.active ? 'hide' : 'approve'}"
-										on:click={() => toggleActive(project)}
-									>
-										{project.active ? 'Hide' : 'Show'}
-									</button>
-									<button class="btn-delete" on:click={() => deleteProject(String(project.id))}>
-										Delete
-									</button>
-								</div>
-							</div>
+						{#if project.githubUrl}
+							<a class="github-link" href={project.githubUrl} target="_blank" rel="noreferrer">
+								<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+									<path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+								</svg>
+								View on GitHub
+							</a>
 						{/if}
 					</article>
 				{/each}
@@ -296,6 +339,11 @@
 				</label>
 
 				<label class="label">
+					GitHub URL
+					<input class="input modal-input" bind:value={formData.githubUrl} placeholder="https://github.com/user/repo" type="url" />
+				</label>
+
+				<label class="label">
 					Tags (comma separated)
 					<input class="input modal-input" bind:value={skillsInput} placeholder="e.g. Spring Boot, React, Docker" />
 				</label>
@@ -324,6 +372,14 @@
 	.btn-new:hover { background: rgba(56, 197, 94, 1); transform: translateY(-1px); }
 
 	.loading, .empty-state { text-align: center; padding: 3rem; color: #666; font-size: 1.1rem; }
+
+	.admin-grid {
+		display: grid; grid-template-columns: repeat(3, 1fr);
+		gap: 18px; margin-top: 32px;
+	}
+	@media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
+	@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
+	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
 
 	.carousel-wrapper {
 		display: flex; align-items: center; gap: 16px;
@@ -458,4 +514,14 @@
 	.btn.ghost { background: transparent; }
 	.btn.primary { border-color: rgba(56,197,94,0.35); background: rgba(56,197,94,0.16); color: var(--green); }
 	.btn.primary:hover:not(:disabled) { background: rgba(56,197,94,0.25); }
+
+	.github-link {
+		display: inline-flex; align-items: center; gap: 8px;
+		margin-top: 12px; padding: 8px 14px; border-radius: 999px;
+		border: 1px solid rgba(56,197,94,0.3); background: rgba(56,197,94,0.08);
+		color: var(--green-d); font-weight: 700; font-size: 0.85rem;
+		text-decoration: none; transition: all 0.2s ease; width: fit-content;
+	}
+	.github-link:hover { background: rgba(56,197,94,0.18); transform: translateY(-1px); }
+	.github-link svg { width: 18px; height: 18px; flex-shrink: 0; }
 </style>

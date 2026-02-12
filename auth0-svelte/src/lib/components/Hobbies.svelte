@@ -180,6 +180,36 @@
 				<p>No hobbies available.</p>
 			{/if}
 		</div>
+	{:else if $isAdmin}
+		<div class="admin-grid">
+			{#each displayItems as hobby (hobby.id)}
+				<article class="card hobby-card grid-card" class:inactive-card={!hobby.active}>
+					<h3 class="h3">{hobby.title}</h3>
+					<p class="p muted">{hobby.description}</p>
+
+					{#if hobby.tags?.length}
+						<div class="pill-row">
+							{#each hobby.tags as tag}
+								<span class="pill">{tag}</span>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="admin-section">
+						<div class="approval-badge {hobby.active ? 'approved' : 'pending'}">
+							{hobby.active ? 'Active' : 'Inactive'}
+						</div>
+						<div class="admin-actions">
+							<button class="btn-approve {hobby.active ? 'hide' : 'approve'}" on:click={() => toggleActive(hobby)}>
+								{hobby.active ? 'Hide' : 'Show'}
+							</button>
+							<button class="btn-edit" on:click={() => openEditModal(hobby)}>Edit</button>
+							<button class="btn-delete" on:click={() => deleteHobby(hobby.id)}>Delete</button>
+						</div>
+					</div>
+				</article>
+			{/each}
+		</div>
 	{:else}
 		<div class="carousel-wrapper">
 			<button
@@ -204,21 +234,6 @@
 								{#each hobby.tags as tag}
 									<span class="pill">{tag}</span>
 								{/each}
-							</div>
-						{/if}
-
-						{#if $isAdmin}
-							<div class="admin-section">
-								<div class="approval-badge {hobby.active ? 'approved' : 'pending'}">
-									{hobby.active ? 'Active' : 'Inactive'}
-								</div>
-								<div class="admin-actions">
-									<button class="btn-approve {hobby.active ? 'hide' : 'approve'}" on:click={() => toggleActive(hobby)}>
-										{hobby.active ? 'Hide' : 'Show'}
-									</button>
-									<button class="btn-edit" on:click={() => openEditModal(hobby)}>Edit</button>
-									<button class="btn-delete" on:click={() => deleteHobby(hobby.id)}>Delete</button>
-								</div>
 							</div>
 						{/if}
 					</article>
@@ -290,6 +305,14 @@
 	.btn-new:hover { background: rgba(56, 197, 94, 1); transform: translateY(-1px); }
 
 	.loading, .empty-state { text-align: center; padding: 3rem; color: #666; font-size: 1.1rem; }
+
+	.admin-grid {
+		display: grid; grid-template-columns: repeat(3, 1fr);
+		gap: 18px; margin-top: 32px;
+	}
+	@media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
+	@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
+	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
 
 	.carousel-wrapper {
 		display: flex; align-items: center; gap: 16px;
