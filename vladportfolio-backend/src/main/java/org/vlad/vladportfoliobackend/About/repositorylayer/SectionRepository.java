@@ -1,12 +1,9 @@
 package org.vlad.vladportfoliobackend.About.repositorylayer;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.vlad.vladportfoliobackend.About.datalayer.Section;
+import reactor.core.publisher.Mono;
 
-@Repository
-public interface SectionRepository extends JpaRepository<Section, Long> {
-
-    Section findByTitle(String sectionTitle);
-
+public interface SectionRepository extends ReactiveCrudRepository<Section, Long> {
+    Mono<Section> findByTitle(String title);
 }

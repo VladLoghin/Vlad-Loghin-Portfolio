@@ -6,8 +6,9 @@ import org.vlad.vladportfoliobackend.About.datalayer.SectionRequestDTO;
 import org.vlad.vladportfoliobackend.About.datalayer.SectionResponseDTO;
 import org.vlad.vladportfoliobackend.About.datalayer.SectionType;
 import org.vlad.vladportfoliobackend.About.repositorylayer.SectionRepository;
-
-import java.util.List;
+import org.vlad.vladportfoliobackend.utils.JsonUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class SectionServiceImpl implements SectionService {
@@ -19,41 +20,37 @@ public class SectionServiceImpl implements SectionService {
     }
 
     @Override
-    public SectionResponseDTO getSectionByTitle(String title) {
-        Section section = sectionRepository.findByTitle(title);
-        return SectionResponseDTO.from(section);
+    public Mono<SectionResponseDTO> getSectionByTitle(String title) {
+        return sectionRepository.findByTitle(title)
+                .switchIfEmpty(Mono.error(new RuntimeException("Section not found: " + title)))
+                .map(SectionResponseDTO::from);
     }
 
     @Override
-    public SectionResponseDTO changeSection(Long id, SectionRequestDTO dto) {
-        Section section = sectionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Section not found: " + id));
+    public Mono<SectionResponseDTO> changeSection(Long id, SectionRequestDTO dto) {
+        return sectionRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Section not found: " + id)))
+                .flatMap(section -> {
+                    section.setTitle(dto.getTitle());
+                    section.setType(dto.getType().name());
 
-        section.setTitle(dto.getTitle());
-        section.setType(dto.getType());
+                    // enforce consistency based on type
+                    if (dto.getType() == SectionType.PARAGRAPH) {
+                        section.setBody(dto.getBody());
+                        section.setItems(JsonUtils.toJson(null));
+                    } else {
+                        section.setBody(null);
+                        section.setItems(JsonUtils.toJson(dto.getItems()));
+                    }
 
-        // enforce consistency based on type
-        if (dto.getType() == SectionType.PARAGRAPH) {
-            section.setBody(dto.getBody());
-            section.getItems().clear();
-        } else {
-            section.setBody(null);
-            section.getItems().clear();
-            if (dto.getItems() != null) {
-                section.getItems().addAll(dto.getItems());
-            }
-        }
-
-        Section saved = sectionRepository.save(section);
-        return SectionResponseDTO.from(saved);
+                    return sectionRepository.save(section);
+                })
+                .map(SectionResponseDTO::from);
     }
 
     @Override
-    public List<SectionResponseDTO> getAllSections() {
+    public Flux<SectionResponseDTO> getAllSections() {
         return sectionRepository.findAll()
-                .stream()
-                .map(SectionResponseDTO::from)
-                .toList();
+                .map(SectionResponseDTO::from);
     }
-
 }

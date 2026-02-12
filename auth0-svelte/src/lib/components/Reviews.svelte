@@ -1,10 +1,4 @@
-<script lang="ts">
-  import { isAuthenticated } from "$lib/stores/auth";
-
-  let scrollContainer: HTMLDivElement;
-  let canScrollLeft = false;
-  let canScrollRight = true;
-
+<script context="module" lang="ts">
   export type Review = {
     id: string;
     name: string;
@@ -12,24 +6,53 @@
     avatar: string;
     content: string;
     rating: number;
-    approved?: boolean;
+    approved: boolean;
   };
+</script>
+
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { isAuthenticated, isAdmin, getToken } from "$lib/stores/auth";
+
+  let scrollContainer: HTMLDivElement;
+  let canScrollLeft = false;
+  let canScrollRight = true;
 
   export let title: string = "Reviews";
   export let subtitle: string =
     "What people typically say after working with me: I ship, I communicate, and I clean up after myself.";
-  export let reviews: Review[] = [];
-  export let isAdmin: boolean = false;
-  export let onSave: ((next: Review[]) => Promise<void> | void) | undefined;
 
+  let reviews: Review[] = [];
+  let loading = true;
   let editOpen = false;
   let saving = false;
   let error = "";
 
   let draftName = "";
-  let draftRole = "";
   let draftContent = "";
   let draftRating = 5;
+
+  const RATING_MAP: Record<number, string> = {
+    1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE"
+  };
+
+  async function fetchReviews() {
+    try {
+      const res = await fetch("/api/reviews");
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      reviews = await res.json();
+    } catch (e: any) {
+      console.error("Failed to load reviews:", e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  onMount(() => {
+    fetchReviews();
+  });
+
+  $: visibleReviews = $isAdmin ? reviews : reviews.filter(r => r.approved);
 
   function checkScroll() {
     if (!scrollContainer) return;
@@ -49,7 +72,6 @@
 
   function openNewReview() {
     draftName = "";
-    draftRole = "";
     draftContent = "";
     draftRating = 5;
     error = "";
@@ -70,31 +92,51 @@
   }
 
   async function saveReview() {
-    const cleaned = {
-      id: `review-${Date.now()}`,
-      name: draftName.trim(),
-      role: draftRole.trim(),
-      avatar: "",
-      content: draftContent.trim(),
-      rating: draftRating,
-      approved: false
-    };
+    const name = draftName.trim();
+    const content = draftContent.trim();
 
-    if (!cleaned.name || !cleaned.role || !cleaned.content) {
+    if (!name || !content) {
       error = "Please fill out all fields";
       return;
     }
 
     saving = true;
     error = "";
+
     try {
-      reviews = [...reviews, cleaned];
-      await onSave?.(reviews);
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reviewerName: name,
+          content,
+          rating: RATING_MAP[draftRating]
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to submit review");
+
+      await fetchReviews();
       closeEdit();
     } catch (e: any) {
-      error = e?.message ?? "Failed to save";
+      error = e?.message ?? "Failed to save review";
     } finally {
       saving = false;
+    }
+  }
+
+  async function toggleApproval(review: Review) {
+    try {
+      const token = await getToken();
+      const res = await fetch(`/api/reviews/${review.id}/approved?approved=${!review.approved}`, {
+        method: "PATCH",
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      if (!res.ok) throw new Error("Failed to update review");
+      await fetchReviews();
+    } catch (e: any) {
+      console.error("Failed to toggle approval:", e);
     }
   }
 
@@ -111,129 +153,144 @@
       <h2 class="h2">{title}</h2>
     </div>
     <p class="lead">{subtitle}</p>
-    {#if isAuthenticated && !isAdmin}
-
-    <button class="btn-new-review" type="button" on:click={openNewReview}>
-      + New Review
-    </button>
+    {#if $isAuthenticated && !$isAdmin}
+      <button class="btn-new-review" type="button" on:click={openNewReview}>
+        + New Review
+      </button>
     {/if}
   </div>
 
-  <div class="carousel-wrapper">
-    <button
-      class="carousel-btn carousel-btn--left"
-      class:disabled={!canScrollLeft}
-      on:click={() => scroll("left")}
-      aria-label="Scroll reviews left"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
-    </button>
+  {#if loading}
+    <p class="p" style="text-align:center;opacity:0.6;">Loading reviews...</p>
+  {:else if visibleReviews.length === 0}
+    <p class="p" style="text-align:center;opacity:0.6;">No reviews yet.</p>
+  {:else}
+    <div class="carousel-wrapper">
+      <button
+        class="carousel-btn carousel-btn--left"
+        class:disabled={!canScrollLeft}
+        on:click={() => scroll("left")}
+        aria-label="Scroll reviews left"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
 
-    <div
-      class="reviews-carousel"
-      bind:this={scrollContainer}
-      on:scroll={checkScroll}
-    >
-      {#each reviews as review (review.id)}
-        <article class="card review-card">
-          <div class="review-meta">
-            <p class="p review-name">{review.name}</p>
-            <p class="p small muted">{review.role}</p>
-          </div>
-          <p class="p review-content">{review.content}</p>
-          <div class="stars" aria-label="{review.rating} out of 5 stars">
-            {#each Array(5) as _, i}
-              <svg class="star" class:filled={i < review.rating} viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="12 2 15.09 10.26 24 10.35 17.77 16.01 19.85 24.29 12 18.54 4.15 24.29 6.23 16.01 0 10.35 8.91 10.26"/>
-              </svg>
-            {/each}
-          </div>
-        </article>
-      {/each}
+      <div
+        class="reviews-carousel"
+        bind:this={scrollContainer}
+        on:scroll={checkScroll}
+      >
+        {#each visibleReviews as review (review.id)}
+          <article class="card review-card" class:unapproved={!review.approved && $isAdmin}>
+            {#if $isAdmin}
+              <div class="admin-badge-row">
+                <span class="approval-badge" class:approved={review.approved} class:pending={!review.approved}>
+                  {review.approved ? "Approved" : "Pending"}
+                </span>
+                <button
+                  class="btn-approve"
+                  class:approve={!review.approved}
+                  class:hide={review.approved}
+                  type="button"
+                  on:click={() => toggleApproval(review)}
+                >
+                  {review.approved ? "Hide" : "Approve"}
+                </button>
+              </div>
+            {/if}
+            <div class="review-meta">
+              <p class="p review-name">{review.name}</p>
+              <p class="p small muted">{review.role}</p>
+            </div>
+            <p class="p review-content">{review.content}</p>
+            <div class="stars" aria-label="{review.rating} out of 5 stars">
+              {#each Array(5) as _, i}
+                <svg class="star" class:filled={i < review.rating} viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12 2 15.09 10.26 24 10.35 17.77 16.01 19.85 24.29 12 18.54 4.15 24.29 6.23 16.01 0 10.35 8.91 10.26"/>
+                </svg>
+              {/each}
+            </div>
+          </article>
+        {/each}
+      </div>
+
+      <button
+        class="carousel-btn carousel-btn--right"
+        class:disabled={!canScrollRight}
+        on:click={() => scroll("right")}
+        aria-label="Scroll reviews right"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
     </div>
-
-    <button
-      class="carousel-btn carousel-btn--right"
-      class:disabled={!canScrollRight}
-      on:click={() => scroll("right")}
-      aria-label="Scroll reviews right"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="9 18 15 12 9 6"></polyline>
-      </svg>
-    </button>
-  </div>
+  {/if}
 </section>
 
 {#if editOpen}
-  
-    <div class="modal-layer" role="presentation" on:click={closeEdit}>
-      <div class="modal" role="dialog" aria-modal="true" on:click|stopPropagation>
-        <div class="modal-head">
-          <h3 class="h3" style="margin:0;">Add Review</h3>
-          <button class="icon-x" type="button" aria-label="Close" on:click={closeEdit}>✕</button>
-        </div>
-
-        <div class="modal-body">
-          <label class="label">
-            Name
-            <input
-              class="input modal-input"
-              value={draftName}
-              on:input={(e) => (draftName = (e.currentTarget as HTMLInputElement).value)}
-              placeholder="e.g. John Smith"
-            />
-          </label>
-
-          <label class="label">
-            Role / Company
-            <input
-              class="input modal-input"
-              value={draftRole}
-              on:input={(e) => (draftRole = (e.currentTarget as HTMLInputElement).value)}
-              placeholder="e.g. CEO at TechCorp"
-            />
-          </label>
-
-          <label class="label">
-            Rating
-            <select class="input modal-input" bind:value={draftRating}>
-              <option value={5}>⭐ 5 Stars</option>
-              <option value={4}>⭐ 4 Stars</option>
-              <option value={3}>⭐ 3 Stars</option>
-              <option value={2}>⭐ 2 Stars</option>
-              <option value={1}>⭐ 1 Star</option>
-            </select>
-          </label>
-
-          <label class="label">
-            Review
-            <textarea
-              class="input modal-input textarea-input"
-              value={draftContent}
-              on:input={(e) => (draftContent = (e.currentTarget as HTMLTextAreaElement).value)}
-              placeholder="Write your review here..."
-              rows="5"
-            />
-          </label>
-
-          {#if error}
-            <p class="p small" style="margin:10px 0 0;color:#ff5252;">{error}</p>
-          {/if}
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn ghost" type="button" on:click={closeEdit} disabled={saving}>
-            Cancel
-          </button>
-          <button class="btn primary" type="button" on:click={saveReview} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </button>
-        </div>
+  <div class="modal-layer" role="presentation" on:click={closeEdit}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_interactive_supports_focus -->
+    <div class="modal" role="dialog" aria-modal="true" on:click|stopPropagation>
+      <div class="modal-head">
+        <h3 class="h3" style="margin:0;">Add Review</h3>
+        <button class="icon-x" type="button" aria-label="Close" on:click={closeEdit}>✕</button>
       </div>
+
+      <div class="modal-body">
+        <label class="label">
+          Name
+          <input
+            class="input modal-input"
+            value={draftName}
+            on:input={(e) => (draftName = (e.currentTarget as HTMLInputElement).value)}
+            placeholder="e.g. John Smith"
+          />
+        </label>
+
+        <label class="label">
+          Rating
+          <select class="input modal-input" bind:value={draftRating}>
+            <option value={5}>⭐ 5 Stars</option>
+            <option value={4}>⭐ 4 Stars</option>
+            <option value={3}>⭐ 3 Stars</option>
+            <option value={2}>⭐ 2 Stars</option>
+            <option value={1}>⭐ 1 Star</option>
+          </select>
+        </label>
+
+        <label class="label">
+          Review
+          <textarea
+            class="input modal-input textarea-input"
+            value={draftContent}
+            on:input={(e) => (draftContent = (e.currentTarget as HTMLTextAreaElement).value)}
+            placeholder="Write your review here..."
+            rows="5"
+          ></textarea>
+        </label>
+
+        {#if error}
+          <p class="p small" style="margin:10px 0 0;color:#ff5252;">{error}</p>
+        {/if}
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" type="button" on:click={closeEdit} disabled={saving}>
+          Cancel
+        </button>
+        <button class="btn primary" type="button" on:click={saveReview} disabled={saving}>
+          {saving ? "Saving..." : "Submit Review"}
+        </button>
+      </div>
+
+      <p class="p small" style="padding:0 18px 14px;opacity:0.5;margin:0;">
+        Your review will appear after admin approval.
+      </p>
     </div>
+  </div>
 {/if}
 
 <style>
@@ -272,13 +329,19 @@
     align-items: center;
     text-align: center;
     padding: 24px;
+    position: relative;
+  }
+
+  .review-card.unapproved {
+    opacity: 0.6;
+    border: 1px dashed rgba(255, 165, 0, 0.5);
   }
 
   @media (max-width: 980px) {
     .reviews-carousel {
       padding: 0 calc(50% - 250px);
     }
-    
+
     .review-card {
       flex: 0 0 500px;
       max-width: 500px;
@@ -289,7 +352,7 @@
     .reviews-carousel {
       padding: 0 20px;
     }
-    
+
     .review-card {
       flex: 0 0 calc(100% - 40px);
       max-width: 100%;
@@ -376,6 +439,61 @@
   .btn-new-review:hover {
     background: rgba(56, 197, 94, 1);
     transform: translateY(-1px);
+  }
+
+  /* ========== ADMIN CONTROLS ========== */
+  .admin-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .approval-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .approval-badge.approved {
+    background: rgba(56, 197, 94, 0.15);
+    color: #2e7d32;
+  }
+
+  .approval-badge.pending {
+    background: rgba(255, 165, 0, 0.15);
+    color: #e65100;
+  }
+
+  .btn-approve {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-approve.approve {
+    background: rgba(56, 197, 94, 0.2);
+    color: #2e7d32;
+  }
+
+  .btn-approve.approve:hover {
+    background: rgba(56, 197, 94, 0.35);
+  }
+
+  .btn-approve.hide {
+    background: rgba(255, 82, 82, 0.15);
+    color: #c62828;
+  }
+
+  .btn-approve.hide:hover {
+    background: rgba(255, 82, 82, 0.3);
   }
 
   /* ========== MODAL STYLES ========== */

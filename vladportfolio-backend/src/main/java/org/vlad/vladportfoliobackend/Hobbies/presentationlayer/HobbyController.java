@@ -4,8 +4,8 @@ import org.springframework.web.bind.annotation.*;
 import org.vlad.vladportfoliobackend.Hobbies.datalayer.HobbyRequestModel;
 import org.vlad.vladportfoliobackend.Hobbies.datalayer.HobbyResponseDTO;
 import org.vlad.vladportfoliobackend.Hobbies.servicelayer.HobbyService;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/hobbies")
@@ -18,22 +18,27 @@ public class HobbyController {
     }
 
     @GetMapping()
-    public List<HobbyResponseDTO> getAllHobbies() {
+    public Flux<HobbyResponseDTO> getAllHobbies() {
         return hobbyService.getAllHobbies();
     }
 
     @PostMapping()
-    public HobbyResponseDTO addHobby(@RequestBody HobbyRequestModel hobby) {
+    public Mono<HobbyResponseDTO> addHobby(@RequestBody HobbyRequestModel hobby) {
         return hobbyService.addHobby(hobby);
     }
 
     @PutMapping("/{id}")
-    public HobbyResponseDTO editHobby(@PathVariable Long id, @RequestBody HobbyRequestModel hobby) {
+    public Mono<HobbyResponseDTO> editHobby(@PathVariable Long id, @RequestBody HobbyRequestModel hobby) {
         return hobbyService.editHobby(id, hobby);
     }
 
+    @PatchMapping("/{id}/active")
+    public Mono<Void> toggleActive(@PathVariable Long id, @RequestParam boolean active) {
+        return hobbyService.toggleActive(id, active);
+    }
+
     @DeleteMapping("/{id}")
-    public void deleteHobby(@PathVariable Long id) {
-        hobbyService.deleteHobby(id);
+    public Mono<Void> deleteHobby(@PathVariable Long id) {
+        return hobbyService.deleteHobby(id);
     }
 }

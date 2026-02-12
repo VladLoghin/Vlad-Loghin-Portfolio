@@ -5,52 +5,61 @@ import org.vlad.vladportfoliobackend.Hobbies.datalayer.Hobby;
 import org.vlad.vladportfoliobackend.Hobbies.datalayer.HobbyRequestModel;
 import org.vlad.vladportfoliobackend.Hobbies.datalayer.HobbyResponseDTO;
 import org.vlad.vladportfoliobackend.Hobbies.repositorylayer.HobbyRepository;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.vlad.vladportfoliobackend.utils.JsonUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class HobbyServiceImpl implements HobbyService {
 
-    HobbyRepository hobbyRepository;
+    private final HobbyRepository hobbyRepository;
 
     public HobbyServiceImpl(HobbyRepository hobbyRepository) {
         this.hobbyRepository = hobbyRepository;
     }
 
     @Override
-    public List<HobbyResponseDTO> getAllHobbies() {
-        return hobbyRepository.findAll().stream()
-                .map(HobbyResponseDTO::from)
-                .toList();
+    public Flux<HobbyResponseDTO> getAllHobbies() {
+        return hobbyRepository.findAll()
+                .map(HobbyResponseDTO::from);
     }
 
     @Override
-    public HobbyResponseDTO addHobby(HobbyRequestModel hobby) {
+    public Mono<HobbyResponseDTO> addHobby(HobbyRequestModel hobby) {
         Hobby newHobby = new Hobby();
         newHobby.setHobbyName(hobby.getHobbyName());
         newHobby.setDescription(hobby.getDescription());
-
-        // IMPORTANT: always initialize the collection
-        newHobby.setTags(
-                hobby.getTags() != null ? hobby.getTags() : new ArrayList<>()
-        );
-
-        return HobbyResponseDTO.from(hobbyRepository.save(newHobby));
-    }
-
-
-    @Override
-    public HobbyResponseDTO editHobby(Long id, HobbyRequestModel hobby) {
-        Hobby existingHobby = hobbyRepository.findById(id).orElseThrow(() -> new RuntimeException("Hobby not found"));
-        existingHobby.setHobbyName(hobby.getHobbyName());
-        existingHobby.setDescription(hobby.getDescription());
-        existingHobby.setTags(hobby.getTags());
-        return HobbyResponseDTO.from(hobbyRepository.save(existingHobby));
+        newHobby.setTags(JsonUtils.toJson(hobby.getTags()));
+        return hobbyRepository.save(newHobby)
+                .map(HobbyResponseDTO::from);
     }
 
     @Override
-    public void deleteHobby(Long id) {
-        hobbyRepository.deleteById(id);
+    public Mono<HobbyResponseDTO> editHobby(Long id, HobbyRequestModel hobby) {
+        return hobbyRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Hobby not found")))
+                .flatMap(existingHobby -> {
+                    existingHobby.setHobbyName(hobby.getHobbyName());
+                    existingHobby.setDescription(hobby.getDescription());
+                    existingHobby.setTags(JsonUtils.toJson(hobby.getTags()));
+                    return hobbyRepository.save(existingHobby);
+                })
+                .map(HobbyResponseDTO::from);
+    }
+
+    @Override
+    public Mono<Void> deleteHobby(Long id) {
+        return hobbyRepository.deleteById(id);
+    }
+
+    @Override
+    public Mono<Void> toggleActive(Long id, boolean active) {
+        return hobbyRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Hobby not found")))
+                .flatMap(existing -> {
+                    existing.setActive(active);
+                    return hobbyRepository.save(existing);
+                })
+                .then();
     }
 }

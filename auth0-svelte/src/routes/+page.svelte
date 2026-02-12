@@ -1,163 +1,106 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { isLoading, user, login, logout, isAuthenticated, isAdmin } from "$lib/stores/auth";
+  import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken } from "$lib/stores/auth";
   import Projects from "$lib/components/Projects.svelte";
   import Hobbies from "$lib/components/Hobbies.svelte";
   import Reviews from "$lib/components/Reviews.svelte";
   import Skills from "$lib/components/Skills.svelte";
   import Education from "$lib/components/Education.svelte";
-  import type { Project } from "$lib/components/Projects.svelte";
-  import type { Hobby } from "$lib/components/Hobbies.svelte";
-  import type { Review } from "$lib/components/Reviews.svelte";
-  import type { Skill } from "$lib/components/Skills.svelte";
-  import type { EducationItem } from "$lib/components/Education.svelte";
 
-  const projects: Project[] = [
-    {
-      id: "vladtech",
-      name: "VladTech",
-      badge: "Full-stack",
-      description:
-        "Renovation business platform with role-based access, reviews/portfolio modules, and production-ready deployment.",
-      tags: ["Spring Boot", "React", "MongoDB", "Auth0", "Docker"],
-      links: [
-       
-      ]
-    },
-    {
-      id: "Unnamed Game Project",
-      name: "Unnamed Game Project",
-      badge: "In progress",
-      badgeVariant: "ghost",
-      description:
-        "I am currently working and learning about game design and development for a 2D platformer puzzle game with plants. For this project I've called upon the help of a master's student in game design and a graduate from a level design bootcamp",
-      tags: ["Unity 2d", "C#", "Game Design", "Puzzle Mechanics"],
-      links: [
-  
-      ]
-    },
-    {
-      id: "petclinic",
-      name: "PetClinic",
-      badge: "Full-stack",
-      description:
-        "Worked on the PetClinic Billing team, was Scrum Master and developer, worked on emailing and making requests not be static.",
-      tags: ["Spring", "WebFlux", "Docker Compose", "CI"],
-      links: [
+  // About sections from API
+  type AboutSection = {
+    id: string;
+    title: string;
+    type: "PARAGRAPH" | "BULLETS" | "TAGS";
+    body: string | null;
+    items: string[] | null;
+  };
 
-      ]
+  let aboutSections: AboutSection[] = [];
+  let aboutLoading = true;
+  let aboutEditOpen = false;
+  let editingSection: AboutSection | null = null;
+  let editBody = "";
+  let editItems = "";
+
+  async function fetchAboutSections() {
+    aboutLoading = true;
+    try {
+      const res = await fetch("/api/about");
+      if (res.ok) aboutSections = await res.json();
+    } catch (e) {
+      console.error("Failed to fetch about sections:", e);
+    } finally {
+      aboutLoading = false;
     }
-  ];
+  }
 
-  let hobbies: Hobby[] = [
-    {
-      id: "music",
-      title: "Music",
-      description:
-        "I love to play and learn songs that I love musically.",
-      tags: ["Guitar"]
-    },
-    {
-      id: "gamedesign",
-      title: "Game Design",
-      description:
-        "Puzzle systems, time-based mechanics, and narrative worlds that reward observation and experimentation.",
-      tags: ["Systems", "Level design", "Lore", "Prototyping"]
-    },
-    {
-      id: "tabletop",
-      title: "Tabletop & Strategy",
-      description:
-        "Competitive deckbuilding and strategy games—good practice for planning, tradeoffs, and adaptation.",
-      tags: ["Magic: The Gathering", "Warhammer", "Collecting"]
-    },
-    {
-      id: "reading",
-      title: "Reading",
-      description:
-        "I enjoy reading from time to time to unwind and escape for a little while. Some of my favourite series to read are the A Song of Ice and Fire books, the new Ultimate Marvel universe comics, the DC Absolute universe comics, and my favourite philosophical book is Meditations by Marcus Aurelius.",
-      tags: ["Comics", "Fantasy", "Philosophy"]
-    },
-    {
-      id: "Gaming",
-      title: "Gaming",
-      description:
-        "One of the hobbies that has stuck with me over the years, games are a form of higher art taking into account, music, visuals, storytelling and many more things. Some of my favourite games are Crusader Kings 3, Total War Warhammer 3 and Devil May Cry 5. My favourite game character is Dante. He's so cool!",
-      tags: ["RPGs", "Strategy", "Puzzle", "Adventure", "Hack and Slash"]
+  function openAboutEdit(section: AboutSection) {
+    editingSection = section;
+    editBody = section.body || "";
+    editItems = (section.items || []).join(", ");
+    aboutEditOpen = true;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeAboutEdit() {
+    aboutEditOpen = false;
+    editingSection = null;
+    document.body.style.overflow = "";
+  }
+
+  async function saveAboutEdit() {
+    if (!editingSection) return;
+    const token = await getToken();
+    if (!token) return;
+
+    const payload: any = {
+      title: editingSection.title,
+      type: editingSection.type
+    };
+
+    if (editingSection.type === "PARAGRAPH") {
+      payload.body = editBody;
+    } else {
+      payload.items = editItems.split(",").map((s: string) => s.trim()).filter(Boolean);
     }
-  ];
 
-  const reviews: Review[] = [
-    {
-      id: "teammate",
-      name: "Anonymous Teammate",
-      role: "Team project",
-      avatar: "A",
-      content: "Vlad consistently took ownership of the hard parts and still made time to help others unblock.",
-      rating: 5
-    },
-    {
-      id: "mentor",
-      name: "Mentor",
-      role: "Code review",
-      avatar: "M",
-      content: "Strong engineering instincts. When something breaks, he traces it to the root cause instead of patching.",
-      rating: 4
-    },
-    {
-      id: "client",
-      name: "Client",
-      role: "Web app delivery",
-      avatar: "C",
-      content: "Clear communication, fast turnaround, and the end result felt polished—not a rough prototype.",
-      rating: 5
+    try {
+      const res = await fetch(`/api/about/${editingSection.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        await fetchAboutSections();
+        closeAboutEdit();
+      }
+    } catch (e) {
+      console.error("Failed to save about section:", e);
     }
-  ];
+  }
 
-  let skills: Skill[] = [
-    {
-      id: "backend",
-      category: "Backend",
-      items: ["Java", "Spring Boot", "Spring WebFlux", "REST APIs", "Docker", "CI/CD"]
-    },
-    {
-      id: "frontend",
-      category: "Frontend",
-      items: ["Svelte", "React", "TypeScript", "HTML/CSS", "Responsive Design"]
-    },
-    {
-      id: "databases",
-      category: "Databases & Tools",
-      items: ["MongoDB", "MySQL", "Git", "Auth0"]
-    },
-    {
-      id: "practices",
-      category: "Best Practices",
-      items: ["Clean Code", "Solid Principles", "Testing", "Agile", "Code Review"]
-    }
-  ];
+  // Helpers to find sections by type
+  $: aboutParagraph = aboutSections.find(s => s.type === "PARAGRAPH");
+  $: aboutBullets = aboutSections.find(s => s.type === "BULLETS");
+  $: aboutTags = aboutSections.find(s => s.type === "TAGS");
 
-  let education: EducationItem[] = [
-    {
-      id: "champlain",
-      institutionName: "Champlain College St-Lambert",
-      degree: "Computer Science"
-    },
-    {
-      id: "selfstudy",
-      institutionName: "Self-Study",
-      degree: "Spring Boot + React + Docker"
-    }
-  ];
-
-  let showContent = false;
+  let showContent = typeof sessionStorage !== "undefined" && sessionStorage.getItem("portfolioRevealed") === "true";
   let rippleActive = false;
   let mobileMenuOpen = false;
+
+  // --- Language toggle ---
+  let currentLang: "en" | "fr" = "en";
+  let translateReady = false;
 
   function handleReveal() {
     rippleActive = true;
     setTimeout(() => {
       showContent = true;
+      sessionStorage.setItem("portfolioRevealed", "true");
       requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" as any }));
     }, 600);
   }
@@ -171,7 +114,140 @@
     logout();
   };
 
+  // --- Google Translate ---
+  function clearGoogTransCookies() {
+    // Google Translate sets cookies on multiple domains/paths - clear them all
+    const host = window.location.hostname;
+    const expiry = "expires=Thu, 01 Jan 1970 00:00:00 UTC";
+    document.cookie = `googtrans=; path=/; ${expiry}`;
+    document.cookie = `googtrans=; path=/; domain=${host}; ${expiry}`;
+    document.cookie = `googtrans=; path=/; domain=.${host}; ${expiry}`;
+  }
+
+  function initGoogleTranslate() {
+    // Detect current language from cookie BEFORE initializing
+    const match = document.cookie.match(/googtrans=\/en\/(\w+)/);
+    if (match && match[1] === "fr") {
+      currentLang = "fr";
+    }
+
+    // @ts-ignore
+    new google.translate.TranslateElement(
+      {
+        pageLanguage: "en",
+        includedLanguages: "en,fr",
+        autoDisplay: false,
+        layout: 0
+      },
+      "google_translate_element"
+    );
+    translateReady = true;
+  }
+
+  function toggleLanguage() {
+    const target = currentLang === "en" ? "fr" : "en";
+
+    if (target === "en") {
+      // Switching back to English: clear all cookies and reload cleanly
+      clearGoogTransCookies();
+      currentLang = "en";
+      window.location.reload();
+    } else {
+      // Switching to French: set cookie and reload
+      clearGoogTransCookies();
+      document.cookie = "googtrans=/en/fr; path=/";
+      currentLang = "fr";
+      window.location.reload();
+    }
+  }
+
+  // --- CV viewer ---
+  let cvLang: "en" | "fr" = "en";
+  let cvKey = 0; // bump to force iframe reload after upload
+  $: cvUrl = `/api/public/cv?lang=${cvLang}&_=${cvKey}`;
+  let cvUploading = false;
+  let cvUploadStatus: "idle" | "success" | "error" = "idle";
+
+  async function handleCvUpload(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    cvUploading = true;
+    cvUploadStatus = "idle";
+
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("lang", cvLang);
+
+      const res = await fetch("/api/cv/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+      cvUploadStatus = "success";
+      cvKey++; // force iframe to reload with new PDF
+      // Reset after a few seconds
+      setTimeout(() => (cvUploadStatus = "idle"), 3000);
+    } catch {
+      cvUploadStatus = "error";
+    } finally {
+      cvUploading = false;
+      input.value = ""; // reset file input
+    }
+  }
+
+  // --- Contact form ---
+  let contactName = "";
+  let contactEmail = "";
+  let contactMessage = "";
+  let contactSending = false;
+  let contactStatus: "idle" | "success" | "error" = "idle";
+
+  async function handleContactSubmit(e: Event) {
+    e.preventDefault();
+    contactSending = true;
+    contactStatus = "idle";
+
+    try {
+      const res = await fetch("/api/public/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: contactName,
+          email: contactEmail,
+          message: contactMessage
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to send");
+      contactStatus = "success";
+      contactName = "";
+      contactEmail = "";
+      contactMessage = "";
+    } catch {
+      contactStatus = "error";
+    } finally {
+      contactSending = false;
+    }
+  }
+
   onMount(() => {
+    // Fetch about sections from API
+    fetchAboutSections();
+
+    // Load Google Translate script
+    // @ts-ignore
+    window.googleTranslateElementInit = initGoogleTranslate;
+    const script = document.createElement("script");
+    script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    script.async = true;
+    document.head.appendChild(script);
+
     let cleanup: (() => void) | undefined;
 
     const setup = () => {
@@ -217,6 +293,9 @@
     };
   });
 </script>
+
+<!-- Hidden Google Translate container -->
+<div id="google_translate_element" style="display:none;"></div>
 
 <!-- Background -->
 <div class="leaf-bg" aria-hidden="true">
@@ -280,13 +359,19 @@
           <a class="nav-link" href="#education">Education</a>
           <a class="nav-link" href="#projects">Projects</a>
           <a class="nav-link" href="#skills">Skills</a>
+          <a class="nav-link" href="#resume">Resume</a>
           <a class="nav-link" href="#hobbies">Hobbies</a>
           <a class="nav-link" href="#reviews">Reviews</a>
           <a class="nav-link" href="#contact">Contact</a>
           {#if $isAdmin}
-            <a class="nav-link admin-link" href="/admin">Admin</a>
+            <span class="admin-badge">Admin</span>
           {/if}
         </div>
+
+        <!-- Language Toggle -->
+        <button class="lang-toggle" on:click={toggleLanguage} aria-label="Toggle language">
+          {currentLang === "en" ? "FR" : "EN"}
+        </button>
 
         <!-- Mobile Hamburger -->
         <button
@@ -322,12 +407,19 @@
             <a class="mobile-link" href="#education" on:click={closeMobileMenu}>Education</a>
             <a class="mobile-link" href="#projects" on:click={closeMobileMenu}>Projects</a>
             <a class="mobile-link" href="#skills" on:click={closeMobileMenu}>Skills</a>
+            <a class="mobile-link" href="#resume" on:click={closeMobileMenu}>Resume</a>
             <a class="mobile-link" href="#hobbies" on:click={closeMobileMenu}>Hobbies</a>
             <a class="mobile-link" href="#reviews" on:click={closeMobileMenu}>Reviews</a>
             <a class="mobile-link" href="#contact" on:click={closeMobileMenu}>Contact</a>
             {#if $isAdmin}
-              <a class="mobile-link admin-link" href="/admin" on:click={closeMobileMenu}>Admin</a>
+              <span class="mobile-admin-badge">Admin</span>
             {/if}
+
+            <!-- Mobile Language Toggle -->
+            <button class="lang-toggle mobile-lang" on:click={toggleLanguage}>
+              {currentLang === "en" ? "Switch to French" : "Switch to English"}
+            </button>
+
             <div class="mobile-actions">
               {#if $isLoading}
                 <button class="nav-btn ghost" disabled>Loading...</button>
@@ -355,31 +447,36 @@
               </div>
 
               <p class="lead">
-                I'm Vlad Loghin — a software developer who builds clean, reliable web apps with thoughtful UX.
-                I like shipping features fast, then tightening the engineering until it's solid.
+                {aboutParagraph ? aboutParagraph.body : "I'm Vlad Loghin — a software developer who builds clean, reliable web apps with thoughtful UX. I like shipping features fast, then tightening the engineering until it's solid."}
               </p>
-
+              {#if $isAdmin && aboutParagraph}
+                <button class="about-edit-btn" type="button" on:click={() => openAboutEdit(aboutParagraph)}>Edit</button>
+              {/if}
             </div>
 
             <div class="about-grid">
               <article class="card">
-                <h3 class="h3">What I do</h3>
+                <h3 class="h3">{aboutBullets ? aboutBullets.title : "What I do"}</h3>
                 <ul class="list">
-                  <li>Java / Spring Boot APIs</li>
-                  <li>Svelte & React frontends</li>
-                  <li>Docker & CI pipelines</li>
+                  {#each (aboutBullets?.items || ["Java / Spring Boot APIs", "Svelte & React frontends", "Docker & CI pipelines"]) as item}
+                    <li>{item}</li>
+                  {/each}
                 </ul>
+                {#if $isAdmin && aboutBullets}
+                  <button class="about-edit-btn" type="button" on:click={() => openAboutEdit(aboutBullets)}>Edit</button>
+                {/if}
               </article>
 
               <article class="card">
-                <h3 class="h3">What I care about</h3>
+                <h3 class="h3">{aboutTags ? aboutTags.title : "What I care about"}</h3>
                 <div class="pill-row">
-                  <span class="pill">Good Software</span>
-                  <span class="pill">Clean Code</span>
-                  <span class="pill">New Challenges</span>
-                  <span class="pill">Continuous Learning</span>
-                  <span class="pill">Creativity</span>
+                  {#each (aboutTags?.items || ["Good Software", "Clean Code", "New Challenges", "Continuous Learning", "Creativity"]) as item}
+                    <span class="pill">{item}</span>
+                  {/each}
                 </div>
+                {#if $isAdmin && aboutTags}
+                  <button class="about-edit-btn" type="button" on:click={() => openAboutEdit(aboutTags)}>Edit</button>
+                {/if}
               </article>
             </div>
           </div>
@@ -392,40 +489,109 @@
         </div>
       </section>
 
+      <!-- About Edit Modal -->
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+      {#if aboutEditOpen && editingSection}
+        <div class="modal-layer" on:click={closeAboutEdit}>
+          <div class="modal" role="dialog" aria-modal="true" on:click|stopPropagation>
+            <div class="modal-head">
+              <h3 class="h3" style="margin:0;">Edit: {editingSection.title}</h3>
+              <button class="icon-x" type="button" aria-label="Close" on:click={closeAboutEdit}>&#10005;</button>
+            </div>
+            <div class="modal-body">
+              {#if editingSection.type === "PARAGRAPH"}
+                <label class="label">
+                  Content
+                  <textarea class="input modal-input textarea" rows="5" bind:value={editBody}></textarea>
+                </label>
+              {:else}
+                <label class="label">
+                  Items (comma separated)
+                  <textarea class="input modal-input textarea" rows="3" bind:value={editItems}></textarea>
+                </label>
+              {/if}
+            </div>
+            <div class="modal-actions">
+              <button class="btn ghost" type="button" on:click={closeAboutEdit}>Cancel</button>
+              <button class="btn primary" type="button" on:click={saveAboutEdit}>Save</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <!-- EDUCATION -->
-      <Education {education} isAdmin={$isAdmin} onSave={async (next) => {
-        education = next;
-      }} />
+      <Education />
 
       <!-- PROJECTS -->
-      <Projects {projects} isAdmin={$isAdmin} />
+      <Projects />
 
       <!-- SKILLS -->
-      <Skills
-  {skills}
-  isAdmin={$isAdmin}
-  onSave={async (next) => {
-    const res = await fetch("/api/skills", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next)
-    });
+      <Skills />
 
-    if (!res.ok) throw new Error("Failed to save skills");
-    skills = next;
-  }}
-/>
+      <!-- RESUME / CV -->
+      <section id="resume" class="section shell snap-section">
+        <div class="section-head">
+          <div class="section-pill">
+            <h2 class="h2">Resume</h2>
+          </div>
+          <p class="lead">
+            View or download my CV in English or French.
+          </p>
+        </div>
 
+        <div class="cv-toggle-row">
+          <button
+            class="cv-tab"
+            class:active={cvLang === "en"}
+            on:click={() => (cvLang = "en")}
+          >
+            English
+          </button>
+          <button
+            class="cv-tab"
+            class:active={cvLang === "fr"}
+            on:click={() => (cvLang = "fr")}
+          >
+            French
+          </button>
 
+          {#if $isAdmin}
+            <label class="cv-upload-btn">
+              {cvUploading ? "Uploading..." : "Upload new PDF"}
+              <input
+                type="file"
+                accept="application/pdf"
+                on:change={handleCvUpload}
+                disabled={cvUploading}
+                hidden
+              />
+            </label>
+          {/if}
+        </div>
+
+        {#if cvUploadStatus === "success"}
+          <p class="cv-upload-msg success">CV uploaded successfully!</p>
+        {/if}
+        {#if cvUploadStatus === "error"}
+          <p class="cv-upload-msg error">Upload failed. Please try again.</p>
+        {/if}
+
+        <div class="cv-viewer card">
+          <iframe
+            title="CV - {cvLang === 'en' ? 'English' : 'French'}"
+            src={cvUrl}
+            width="100%"
+            height="800"
+            style="border: none; border-radius: 12px;"
+          ></iframe>
+        </div>
+      </section>
 
       <!-- HOBBIES -->
-      <Hobbies {hobbies} isAdmin={$isAdmin} onSave={async (next) => {
-        // Add your API call here when ready
-        hobbies = next;
-      }} />
+      <Hobbies />
 
       <!-- REVIEWS -->
-      <Reviews {reviews} isAdmin={$isAdmin} />
+      <Reviews />
 
       <!-- CONTACT -->
       <section id="contact" class="section shell snap-section">
@@ -441,17 +607,26 @@
         <div class="contact-container">
           <article class="card contact-form-card">
             <h3 class="h3">Send me a message</h3>
-            <form class="contact-form">
+            <form class="contact-form" on:submit={handleContactSubmit}>
               <div class="form-group">
-                <input class="input" type="text" placeholder="Your name" required />
+                <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
               </div>
               <div class="form-group">
-                <input class="input" type="email" placeholder="Your email" required />
+                <input class="input" type="email" placeholder="Your email" required bind:value={contactEmail} />
               </div>
               <div class="form-group">
-                <textarea class="input textarea" placeholder="Tell me about your project..." rows="5"></textarea>
+                <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
               </div>
-              <button class="nav-btn primary" type="submit">Send message</button>
+              <button class="nav-btn primary" type="submit" disabled={contactSending}>
+                {contactSending ? "Sending..." : "Send message"}
+              </button>
+
+              {#if contactStatus === "success"}
+                <p class="contact-success">Message sent! I'll get back to you soon.</p>
+              {/if}
+              {#if contactStatus === "error"}
+                <p class="contact-error">Something went wrong. Please try again or email me directly.</p>
+              {/if}
             </form>
           </article>
 
@@ -485,7 +660,7 @@
       </section>
 
       <footer class="footer shell">
-        <p class="p small muted">© {new Date().getFullYear()} Vlad Loghin</p>
+        <p class="p small muted">&copy; {new Date().getFullYear()} Vlad Loghin</p>
       </footer>
     </main>
   </div>
@@ -495,6 +670,14 @@
   :global(.ripple-active) {
     position: relative;
     overflow: hidden;
+  }
+
+  /* Hide Google Translate bar that appears at top */
+  :global(.skiptranslate) {
+    display: none !important;
+  }
+  :global(body) {
+    top: 0 !important;
   }
 
   /* --- snap (optional) --- */
@@ -509,6 +692,33 @@
   .snap-section {
     scroll-snap-align: start;
     scroll-margin-top: 120px;
+  }
+
+  /* --- LANGUAGE TOGGLE --- */
+  .lang-toggle {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(56, 197, 94, 0.1);
+    color: var(--green-d);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+  }
+
+  .lang-toggle:hover {
+    background: rgba(56, 197, 94, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .mobile-lang {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    margin-top: 8px;
   }
 
   /* --- MOBILE MENU --- */
@@ -610,9 +820,17 @@
     color: var(--green);
   }
 
-  .mobile-link.admin-link {
-    color: #ff9800;
+  .mobile-admin-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    background: #ff9800;
+    color: white;
+    font-size: 12px;
     font-weight: 700;
+    border-radius: 6px;
+    text-transform: uppercase;
+    align-self: flex-start;
+    margin-left: 16px;
   }
 
   .mobile-actions {
@@ -645,6 +863,7 @@
     .snap-section {
       scroll-margin-top: 80px;
     }
+
   }
 
   /* ---------- EXISTING GRID STYLES ---------- */
@@ -834,6 +1053,26 @@
     margin: 0 0 4px 0;
   }
 
+  .contact-success {
+    color: var(--green-d);
+    font-weight: 600;
+    margin: 0;
+    padding: 12px;
+    background: rgba(56, 197, 94, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(56, 197, 94, 0.25);
+  }
+
+  .contact-error {
+    color: #d32f2f;
+    font-weight: 600;
+    margin: 0;
+    padding: 12px;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 8px;
+    border: 1px solid rgba(211, 47, 47, 0.25);
+  }
+
   .nav-btn {
     padding: 12px 24px;
     border: none;
@@ -843,30 +1082,179 @@
     transition: all 0.2s ease;
   }
 
+  .nav-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .nav-btn.primary {
     background: var(--green);
     color: white;
   }
 
-  .nav-btn.primary:hover {
+  .nav-btn.primary:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(56, 197, 94, 0.3);
   }
 
-  .admin-link {
-    color: #ff9800 !important;
-    font-weight: 700;
+  /* --- About edit button --- */
+  .about-edit-btn {
+    margin-top: 10px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 197, 94, 0.3);
+    background: rgba(56, 197, 94, 0.1);
+    color: var(--green-d);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
+  .about-edit-btn:hover {
+    background: rgba(56, 197, 94, 0.2);
+    transform: translateY(-1px);
+  }
+
+  /* --- About modal styles --- */
+  .modal-layer {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.55); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow-y: auto;
+  }
+  .modal {
+    position: relative; width: min(640px, 100%); max-height: 85vh;
+    background: white; border-radius: 14px;
+    box-shadow: 0 30px 120px rgba(0,0,0,0.35);
+    overflow: hidden; display: flex; flex-direction: column;
+    z-index: 10000; margin: auto;
+  }
+  .modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; border-bottom: 1px solid #eee; flex-shrink: 0;
+  }
+  .icon-x {
+    border: none; background: transparent; font-size: 18px;
+    cursor: pointer; opacity: 0.7; padding: 0;
+    width: 32px; height: 32px; display: grid; place-items: center;
+  }
+  .icon-x:hover { opacity: 1; }
+  .modal-body { padding: 18px; display: grid; gap: 18px; overflow-y: auto; flex: 1; }
+  .label { display: grid; gap: 8px; font-weight: 700; font-size: 13px; color: #222; }
+  .modal-input {
+    background: #fff; border: 1px solid #e0e0e0;
+    padding: 10px 12px; border-radius: 6px;
+    font-family: inherit; font-size: 14px;
+  }
+  .modal-input:focus { outline: none; border-color: rgba(56,197,94,0.5); box-shadow: 0 0 0 3px rgba(56,197,94,0.1); }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 14px 18px; border-top: 1px solid #eee;
+    background: #fafafa; flex-shrink: 0;
+  }
+  .btn {
+    padding: 10px 14px; border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.12); background: rgba(0,0,0,0.04);
+    cursor: pointer; font-weight: 800; transition: all 0.2s ease; font-size: 13px;
+  }
+  .btn.ghost { background: transparent; }
+  .btn.primary { border-color: rgba(56,197,94,0.35); background: rgba(56,197,94,0.16); color: var(--green); }
+  .btn.primary:hover:not(:disabled) { background: rgba(56,197,94,0.25); }
+
+  /* --- Admin badge (no link) --- */
   .admin-badge {
     display: inline-block;
     margin-left: 8px;
-    padding: 2px 8px;
+    padding: 4px 10px;
     background: #ff9800;
     color: white;
     font-size: 11px;
     font-weight: 700;
     border-radius: 4px;
     text-transform: uppercase;
+  }
+
+  /* --- CV Viewer --- */
+  .cv-toggle-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .cv-tab {
+    padding: 10px 24px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .cv-tab.active {
+    background: var(--green);
+    color: white;
+    border-color: var(--green);
+  }
+
+  .cv-tab:hover:not(.active) {
+    background: rgba(56, 197, 94, 0.1);
+    color: var(--green-d);
+  }
+
+  .cv-upload-btn {
+    padding: 10px 24px;
+    border: 1px dashed var(--green);
+    border-radius: 999px;
+    background: rgba(56, 197, 94, 0.08);
+    color: var(--green-d);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-left: auto;
+  }
+
+  .cv-upload-btn:hover {
+    background: rgba(56, 197, 94, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .cv-upload-msg {
+    margin: 0 0 12px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .cv-upload-msg.success {
+    color: var(--green-d);
+    background: rgba(56, 197, 94, 0.1);
+    border: 1px solid rgba(56, 197, 94, 0.25);
+  }
+
+  .cv-upload-msg.error {
+    color: #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border: 1px solid rgba(211, 47, 47, 0.25);
+  }
+
+  .cv-viewer {
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .cv-viewer iframe {
+    display: block;
+    width: 100%;
+    min-height: 600px;
+  }
+
+  @media (max-width: 768px) {
+    .cv-viewer iframe {
+      min-height: 400px;
+    }
   }
 </style>

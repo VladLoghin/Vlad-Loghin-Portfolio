@@ -2,6 +2,7 @@ package org.vlad.vladportfoliobackend.About.datalayer;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.vlad.vladportfoliobackend.utils.JsonUtils;
 
 import java.util.List;
 
@@ -18,9 +19,9 @@ public class SectionResponseDTO {
         SectionResponseDTO dto = new SectionResponseDTO();
         dto.setId(String.valueOf(section.getId()));
         dto.setTitle(section.getTitle());
-        dto.setType(section.getType());
+        dto.setType(SectionType.valueOf(section.getType()));
         dto.setBody(section.getBody());
-        dto.setItems(section.getItems());
+        dto.setItems(JsonUtils.fromJson(section.getItems()));
         return dto;
     }
 }

@@ -2,14 +2,14 @@ package org.vlad.vladportfoliobackend.Reviews.servicelayer;
 
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewRequestDTO;
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewResponseDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface ReviewService {
 
-    List<ReviewResponseDTO> getAllReviews();
+    Flux<ReviewResponseDTO> getAllReviews();
 
-    ReviewResponseDTO addReview(ReviewRequestDTO review);
+    Mono<ReviewResponseDTO> addReview(ReviewRequestDTO review);
 
-    void changeReviewVisibility(Long reviewId, boolean approved);
+    Mono<Void> changeReviewVisibility(Long reviewId, boolean approved);
 }

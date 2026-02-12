@@ -5,9 +5,9 @@ import org.vlad.vladportfoliobackend.Projects.datalayer.Project;
 import org.vlad.vladportfoliobackend.Projects.datalayer.ProjectRequestDTO;
 import org.vlad.vladportfoliobackend.Projects.datalayer.ProjectResponseDTO;
 import org.vlad.vladportfoliobackend.Projects.repositorylayer.ProjectRepository;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.vlad.vladportfoliobackend.utils.JsonUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
@@ -19,69 +19,59 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<ProjectResponseDTO> getAllProjects() {
+    public Flux<ProjectResponseDTO> getAllProjects() {
         return projectRepository.findAll()
-                .stream()
-                .map(this::mapToResponseDTO)
-                .toList();
+                .map(ProjectResponseDTO::from);
     }
 
     @Override
-    public ProjectResponseDTO createProject(ProjectRequestDTO request) {
-        Project entity = mapToEntity(request);
-        Project saved = projectRepository.save(entity);
-        return mapToResponseDTO(saved);
+    public Mono<ProjectResponseDTO> createProject(ProjectRequestDTO request) {
+        Project entity = new Project();
+        entity.setProjectName(request.getProjectName());
+        entity.setTag(request.getTag());
+        entity.setDescription(request.getDescription());
+        entity.setSkills(JsonUtils.toJson(request.getSkills()));
+        return projectRepository.save(entity)
+                .map(ProjectResponseDTO::from);
     }
 
     @Override
-    public ProjectResponseDTO updateProject(Long id, ProjectRequestDTO request) {
-        Project existing = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
-
-        if (request.getProjectName() != null) {
-            existing.setProjectName(request.getProjectName());
-        }
-        if (request.getTag() != null) {
-            existing.setTag(request.getTag());
-        }
-        if (request.getDescription() != null) {
-            existing.setDescription(request.getDescription());
-        }
-        if (request.getSkills() != null) {
-            existing.setSkills(request.getSkills());
-        }
-
-        Project saved = projectRepository.save(existing);
-        return mapToResponseDTO(saved);
+    public Mono<ProjectResponseDTO> updateProject(Long id, ProjectRequestDTO request) {
+        return projectRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Project not found")))
+                .flatMap(existing -> {
+                    if (request.getProjectName() != null) {
+                        existing.setProjectName(request.getProjectName());
+                    }
+                    if (request.getTag() != null) {
+                        existing.setTag(request.getTag());
+                    }
+                    if (request.getDescription() != null) {
+                        existing.setDescription(request.getDescription());
+                    }
+                    if (request.getSkills() != null) {
+                        existing.setSkills(JsonUtils.toJson(request.getSkills()));
+                    }
+                    return projectRepository.save(existing);
+                })
+                .map(ProjectResponseDTO::from);
     }
 
     @Override
-    public void deleteProject(Long id) {
-        if (!projectRepository.existsById(id)) {
-            throw new RuntimeException("Project not found");
-        }
-        projectRepository.deleteById(id);
+    public Mono<Void> deleteProject(Long id) {
+        return projectRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Project not found")))
+                .flatMap(existing -> projectRepository.deleteById(id));
     }
 
-    // --------- MAPPERS ---------
-
-    private Project mapToEntity(ProjectRequestDTO request) {
-        Project p = new Project();
-        p.setProjectName(request.getProjectName());
-        p.setTag(request.getTag());
-        p.setDescription(request.getDescription());
-        p.setSkills(request.getSkills() != null ? request.getSkills() : new ArrayList<>());
-        return p;
-    }
-
-    private ProjectResponseDTO mapToResponseDTO(Project entity) {
-        return new ProjectResponseDTO(
-                entity.getId(),
-                entity.getProjectName(),
-                entity.getTag(),
-                entity.getDescription(),
-                entity.getSkills() != null ? entity.getSkills() : new ArrayList<>()
-
-        );
+    @Override
+    public Mono<Void> toggleActive(Long id, boolean active) {
+        return projectRepository.findById(id)
+                .switchIfEmpty(Mono.error(new RuntimeException("Project not found")))
+                .flatMap(existing -> {
+                    existing.setActive(active);
+                    return projectRepository.save(existing);
+                })
+                .then();
     }
 }
