@@ -1,27 +1,20 @@
 package org.vlad.vladportfoliobackend.Reviews.datalayer;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "reviews")
+@Table("reviews")
 public class Review {
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private Long id;
     private String reviewerName;
     private String content;
-
-    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
-    private Rating rating;
-
+    private String rating;
     private boolean approved = false;
 }

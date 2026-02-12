@@ -2,14 +2,18 @@ package org.vlad.vladportfoliobackend.Skills.servicelayer;
 
 import org.vlad.vladportfoliobackend.Skills.datalayer.SkillRequestDTO;
 import org.vlad.vladportfoliobackend.Skills.datalayer.SkillsResponseDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface SkillsService {
 
-    List<SkillsResponseDTO> getAllSkills();
+    Flux<SkillsResponseDTO> getAllSkills();
 
-    SkillsResponseDTO addSkill(SkillRequestDTO skill);
+    Mono<SkillsResponseDTO> addSkill(SkillRequestDTO skill);
 
-    void deleteSkill(int skillId);
+    Mono<SkillsResponseDTO> updateSkill(int skillId, SkillRequestDTO skill);
+
+    Mono<Void> deleteSkill(int skillId);
+
+    Mono<Void> toggleActive(int skillId, boolean active);
 }

@@ -4,8 +4,8 @@ import org.springframework.web.bind.annotation.*;
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewRequestDTO;
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewResponseDTO;
 import org.vlad.vladportfoliobackend.Reviews.servicelayer.ReviewService;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -18,18 +18,18 @@ public class ReviewController {
     }
 
     @GetMapping()
-    public List<ReviewResponseDTO> getAllReviews() {
+    public Flux<ReviewResponseDTO> getAllReviews() {
         return reviewService.getAllReviews();
     }
 
     @PostMapping()
-    public ReviewResponseDTO addReview(@RequestBody ReviewRequestDTO review) {
+    public Mono<ReviewResponseDTO> addReview(@RequestBody ReviewRequestDTO review) {
         return reviewService.addReview(review);
     }
 
     @PatchMapping("/{id}/approved")
-    public void changeReviewVisibility(@PathVariable("id") Long reviewId, @RequestParam boolean approved) {
-        reviewService.changeReviewVisibility(reviewId, approved);
+    public Mono<Void> changeReviewVisibility(@PathVariable("id") Long reviewId, @RequestParam boolean approved) {
+        return reviewService.changeReviewVisibility(reviewId, approved);
     }
 
 }

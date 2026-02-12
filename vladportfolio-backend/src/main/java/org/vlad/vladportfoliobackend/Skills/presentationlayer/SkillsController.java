@@ -4,9 +4,8 @@ import org.springframework.web.bind.annotation.*;
 import org.vlad.vladportfoliobackend.Skills.datalayer.SkillRequestDTO;
 import org.vlad.vladportfoliobackend.Skills.datalayer.SkillsResponseDTO;
 import org.vlad.vladportfoliobackend.Skills.servicelayer.SkillsService;
-
-import java.util.List;
-
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/skills")
@@ -19,18 +18,27 @@ public class SkillsController {
     }
 
     @GetMapping()
-    public List<SkillsResponseDTO> getAllSkills() {
+    public Flux<SkillsResponseDTO> getAllSkills() {
         return skillsService.getAllSkills();
     }
 
     @PostMapping
-    public SkillsResponseDTO addSkill(@RequestBody SkillRequestDTO skill) {
+    public Mono<SkillsResponseDTO> addSkill(@RequestBody SkillRequestDTO skill) {
         return skillsService.addSkill(skill);
     }
 
-    @DeleteMapping("/{id}")
-    public void deleteSkill(@PathVariable("id") int skillId) {
-        skillsService.deleteSkill(skillId);
+    @PutMapping("/{id}")
+    public Mono<SkillsResponseDTO> updateSkill(@PathVariable("id") int skillId, @RequestBody SkillRequestDTO skill) {
+        return skillsService.updateSkill(skillId, skill);
     }
 
+    @PatchMapping("/{id}/active")
+    public Mono<Void> toggleActive(@PathVariable("id") int skillId, @RequestParam boolean active) {
+        return skillsService.toggleActive(skillId, active);
+    }
+
+    @DeleteMapping("/{id}")
+    public Mono<Void> deleteSkill(@PathVariable("id") int skillId) {
+        return skillsService.deleteSkill(skillId);
+    }
 }

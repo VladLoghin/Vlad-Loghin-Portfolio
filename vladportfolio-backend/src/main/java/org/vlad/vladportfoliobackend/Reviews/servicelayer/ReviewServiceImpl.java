@@ -5,8 +5,8 @@ import org.vlad.vladportfoliobackend.Reviews.datalayer.Review;
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewRequestDTO;
 import org.vlad.vladportfoliobackend.Reviews.datalayer.ReviewResponseDTO;
 import org.vlad.vladportfoliobackend.Reviews.repositorylayer.ReviewRepository;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 public class ReviewServiceImpl implements ReviewService {
@@ -18,29 +18,30 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public List<ReviewResponseDTO> getAllReviews() {
+    public Flux<ReviewResponseDTO> getAllReviews() {
         return reviewRepository.findAll()
-                .stream()
-                .map(ReviewResponseDTO::from)
-                .toList();
+                .map(ReviewResponseDTO::from);
     }
 
     @Override
-    public ReviewResponseDTO addReview(ReviewRequestDTO review) {
+    public Mono<ReviewResponseDTO> addReview(ReviewRequestDTO request) {
         Review newReview = new Review();
-        newReview.setReviewerName(review.getReviewerName());
-        newReview.setContent(review.getContent());
-        newReview.setRating(review.getRating());
+        newReview.setReviewerName(request.getReviewerName());
+        newReview.setContent(request.getContent());
+        newReview.setRating(request.getRating().name());
         newReview.setApproved(false);
-        Review saved = reviewRepository.save(newReview);
-        return ReviewResponseDTO.from(saved);
+        return reviewRepository.save(newReview)
+                .map(ReviewResponseDTO::from);
     }
 
     @Override
-    public void changeReviewVisibility(Long reviewId, boolean approved) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new IllegalArgumentException("Review with id " + reviewId + " not found"));
-        review.setApproved(approved);
-        reviewRepository.save(review);
+    public Mono<Void> changeReviewVisibility(Long reviewId, boolean approved) {
+        return reviewRepository.findById(reviewId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Review with id " + reviewId + " not found")))
+                .flatMap(review -> {
+                    review.setApproved(approved);
+                    return reviewRepository.save(review);
+                })
+                .then();
     }
 }

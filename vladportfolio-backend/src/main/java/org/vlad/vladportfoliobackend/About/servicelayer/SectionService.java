@@ -1,19 +1,15 @@
 package org.vlad.vladportfoliobackend.About.servicelayer;
 
-
-import org.vlad.vladportfoliobackend.About.datalayer.Section;
 import org.vlad.vladportfoliobackend.About.datalayer.SectionRequestDTO;
 import org.vlad.vladportfoliobackend.About.datalayer.SectionResponseDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface SectionService {
 
-    public SectionResponseDTO getSectionByTitle(String title);
+    Mono<SectionResponseDTO> getSectionByTitle(String title);
 
-    public SectionResponseDTO changeSection(Long id, SectionRequestDTO updated);
+    Mono<SectionResponseDTO> changeSection(Long id, SectionRequestDTO updated);
 
-    public List<SectionResponseDTO> getAllSections();
-
-
+    Flux<SectionResponseDTO> getAllSections();
 }

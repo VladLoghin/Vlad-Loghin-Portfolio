@@ -1,15 +1,14 @@
 package org.vlad.vladportfoliobackend.Projects.servicelayer;
 
-import org.vlad.vladportfoliobackend.Projects.datalayer.Project;
 import org.vlad.vladportfoliobackend.Projects.datalayer.ProjectRequestDTO;
 import org.vlad.vladportfoliobackend.Projects.datalayer.ProjectResponseDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface ProjectService {
-    public List<ProjectResponseDTO> getAllProjects();
-    public ProjectResponseDTO createProject(ProjectRequestDTO project);
-    public void deleteProject(Long id);
-
-    public ProjectResponseDTO updateProject(Long id, ProjectRequestDTO project);
+    Flux<ProjectResponseDTO> getAllProjects();
+    Mono<ProjectResponseDTO> createProject(ProjectRequestDTO project);
+    Mono<Void> deleteProject(Long id);
+    Mono<ProjectResponseDTO> updateProject(Long id, ProjectRequestDTO project);
+    Mono<Void> toggleActive(Long id, boolean active);
 }

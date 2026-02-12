@@ -1,27 +1,20 @@
 package org.vlad.vladportfoliobackend.Hobbies.datalayer;
 
-import jakarta.persistence.*;
 import lombok.*;
-
-import java.util.List;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Entity
-@Table(name = "hobbies")
+@Table("hobbies")
 public class Hobby {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String hobbyName;
-
-    @Lob
-    @Column(columnDefinition = "TEXT")
     private String description;
-
-    @ElementCollection
-    private List<String> tags;
+    private String tags;
+    private boolean active = true;
 }
