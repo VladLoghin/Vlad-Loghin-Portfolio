@@ -18,14 +18,3 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     env_file:
       - ./vladportfolio-backend/.env.prod
-
-  frontend:
-    build:
-      context: ./auth0-svelte
-      dockerfile: Dockerfile
-      args:
-        ENV_FILE: .env.prod
-    ports:
-      - "3000:3000"
-    environment:
-      BACKEND_URL: http://backend:8080
