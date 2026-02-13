@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
-  import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken } from "$lib/stores/auth";
+  import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken, error, emailVerified } from "$lib/stores/auth";
   import Projects from "$lib/components/Projects.svelte";
   import Hobbies from "$lib/components/Hobbies.svelte";
   import Reviews from "$lib/components/Reviews.svelte";
@@ -490,6 +490,13 @@
       {/if}
     </header>
 
+    {#if $error}
+      <div class="auth-error-banner">
+        <p>{$error}</p>
+        <button class="auth-error-dismiss" on:click={() => error.set(null)}>&#10005;</button>
+      </div>
+    {/if}
+
     <!-- Page -->
     <main class="page snap-container">
       <!-- ABOUT -->
@@ -596,6 +603,32 @@
             <div class="modal-actions">
               <button class="btn ghost" type="button" on:click={closeAboutEdit}>Cancel</button>
               <button class="btn primary" type="button" on:click={saveAboutEdit}>Save</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Email Verification Modal -->
+      {#if $isAuthenticated && !$emailVerified}
+        <div class="modal-layer">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-head">
+              <h3 class="h3" style="margin:0;">Verify Your Email</h3>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" style="width:64px;height:64px;margin:0 auto 16px;">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M22 4L12 13 2 4" />
+              </svg>
+              <p style="font-size:1rem;color:#333;margin:0 0 8px;">
+                We sent a verification email to <strong>{$user?.email}</strong>.
+              </p>
+              <p style="font-size:0.9rem;color:#666;margin:0 0 20px;">
+                Please check your inbox (and spam folder) and click the verification link, then log in again.
+              </p>
+            </div>
+            <div class="modal-actions" style="justify-content:center;">
+              <button class="btn primary" type="button" on:click={logout}>Log out</button>
             </div>
           </div>
         </div>
@@ -1393,5 +1426,37 @@
     .cv-viewer iframe {
       min-height: 400px;
     }
+  }
+
+  .auth-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: rgba(211, 47, 47, 0.08);
+    border-bottom: 1px solid rgba(211, 47, 47, 0.25);
+    color: #d32f2f;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .auth-error-banner p {
+    margin: 0;
+  }
+
+  .auth-error-dismiss {
+    background: none;
+    border: none;
+    color: #d32f2f;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    opacity: 0.7;
+  }
+
+  .auth-error-dismiss:hover {
+    opacity: 1;
   }
 </style>

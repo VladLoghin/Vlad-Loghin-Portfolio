@@ -1,8 +1,12 @@
 FROM node:20-slim AS build
 WORKDIR /app
+
+ARG ENV_FILE=.env
+
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+COPY ${ENV_FILE} .env
 RUN npm run build
 
 FROM node:20-slim

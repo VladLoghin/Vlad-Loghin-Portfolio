@@ -1,0 +1,31 @@
+# Prod profile — use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+services:
+  db:
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+  backend:
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    env_file:
+      - ./vladportfolio-backend/.env.prod
+
+  frontend:
+    build:
+      context: ./auth0-svelte
+      dockerfile: Dockerfile
+      args:
+        ENV_FILE: .env.prod
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: http://backend:8080
