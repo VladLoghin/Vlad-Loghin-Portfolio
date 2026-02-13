@@ -9,9 +9,5 @@ services:
     depends_on:
       - db
 
-  frontend:
-    depends_on:
-      - backend
-
 volumes:
   pgdata:
