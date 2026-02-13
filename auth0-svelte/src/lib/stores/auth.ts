@@ -20,6 +20,11 @@ export const isAdmin: Readable<boolean> = derived(
   ([$userRoles]) => Array.isArray($userRoles) && $userRoles.some(role => role.toLowerCase() === 'admin')
 );
 
+export const emailVerified: Readable<boolean> = derived(
+  [user, isAuthenticated],
+  ([$user, $isAuthenticated]) => !$isAuthenticated || $user?.email_verified === true
+);
+
 export async function initializeAuth() {
   if (!browser) return;
   
@@ -38,8 +43,18 @@ export async function initializeAuth() {
 
     auth0Client.set(client);
 
-    // Handle callback
-    if (window.location.search.includes('code=')) {
+    // Handle Auth0 error redirect (e.g. email not verified)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('error')) {
+      const errorDesc = params.get('error_description') || 'Authentication failed';
+      error.set(errorDesc);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      isLoading.set(false);
+      return;
+    }
+
+    // Handle successful callback
+    if (params.has('code')) {
       await client.handleRedirectCallback();
       window.history.replaceState({}, document.title, window.location.pathname);
     }
