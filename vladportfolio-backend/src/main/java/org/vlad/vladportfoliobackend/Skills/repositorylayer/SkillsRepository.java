@@ -5,5 +5,5 @@ import org.vlad.vladportfoliobackend.Skills.datalayer.Skills;
 import reactor.core.publisher.Flux;
 
 public interface SkillsRepository extends ReactiveCrudRepository<Skills, Integer> {
-    Flux<Skills> findAllByOrderByIdAsc();
+    Flux<Skills> findAllByOrderByDisplayOrderAscIdAsc();
 }

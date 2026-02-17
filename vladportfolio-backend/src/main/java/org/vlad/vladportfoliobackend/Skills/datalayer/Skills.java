@@ -14,4 +14,5 @@ public class Skills {
     private String skillName;
     private String subskills;
     private boolean active = true;
+    private Integer displayOrder = 0;
 }

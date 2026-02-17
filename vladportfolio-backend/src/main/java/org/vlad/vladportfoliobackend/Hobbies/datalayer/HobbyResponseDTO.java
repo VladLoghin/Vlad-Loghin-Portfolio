@@ -16,6 +16,7 @@ public class HobbyResponseDTO {
     private String description;
     private List<String> tags;
     private boolean active;
+    private int displayOrder;
 
     public static HobbyResponseDTO from(Hobby hobby) {
         return new HobbyResponseDTO(
@@ -23,7 +24,8 @@ public class HobbyResponseDTO {
                 hobby.getHobbyName(),
                 hobby.getDescription(),
                 JsonUtils.fromJson(hobby.getTags()),
-                hobby.isActive()
+                hobby.isActive(),
+                hobby.getDisplayOrder()
         );
     }
 }

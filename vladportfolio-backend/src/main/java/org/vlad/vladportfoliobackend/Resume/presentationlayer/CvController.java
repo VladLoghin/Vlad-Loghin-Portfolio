@@ -3,6 +3,7 @@ package org.vlad.vladportfoliobackend.Resume.presentationlayer;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.vlad.vladportfoliobackend.Resume.servicelayer.CvService;
 import reactor.core.publisher.Mono;
@@ -27,6 +28,7 @@ public class CvController {
                         .body(resource));
     }
 
+    @PreAuthorize("hasRole('Admin')")
     @PostMapping("/cv/upload")
     public Mono<ResponseEntity<Void>> uploadCv(
             @RequestParam String lang,

@@ -5,10 +5,13 @@ import org.vlad.vladportfoliobackend.Education.datalayer.EducationResponseDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 public interface EducationService {
     Flux<EducationResponseDTO> getAllEducation();
     Mono<Void> deleteEducationById(Long id);
     Mono<EducationResponseDTO> addEducation(EducationRequestDTO education);
     Mono<EducationResponseDTO> updateEducation(Long id, EducationRequestDTO education);
     Mono<Void> toggleActive(Long id, boolean active);
+    Mono<Void> reorder(List<Long> orderedIds);
 }

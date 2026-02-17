@@ -5,6 +5,8 @@ import org.vlad.vladportfoliobackend.Hobbies.datalayer.HobbyResponseDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 public interface HobbyService {
 
     Flux<HobbyResponseDTO> getAllHobbies();
@@ -16,4 +18,6 @@ public interface HobbyService {
     Mono<Void> deleteHobby(Long id);
 
     Mono<Void> toggleActive(Long id, boolean active);
+
+    Mono<Void> reorder(List<Long> orderedIds);
 }

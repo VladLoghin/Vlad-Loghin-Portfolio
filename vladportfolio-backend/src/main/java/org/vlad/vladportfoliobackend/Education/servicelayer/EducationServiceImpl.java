@@ -8,6 +8,8 @@ import org.vlad.vladportfoliobackend.Education.repositorylayer.EducationReposito
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Service
 public class EducationServiceImpl implements EducationService {
 
@@ -19,7 +21,7 @@ public class EducationServiceImpl implements EducationService {
 
     @Override
     public Flux<EducationResponseDTO> getAllEducation() {
-        return educationRepository.findAllByOrderByIdAsc()
+        return educationRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .map(EducationResponseDTO::from);
     }
 
@@ -30,10 +32,17 @@ public class EducationServiceImpl implements EducationService {
 
     @Override
     public Mono<EducationResponseDTO> addEducation(EducationRequestDTO education) {
-        Education newEducation = new Education();
-        newEducation.setInstitutionName(education.getInstitutionName());
-        newEducation.setDegree(education.getDegree());
-        return educationRepository.save(newEducation)
+        return educationRepository.findAllByOrderByDisplayOrderAscIdAsc()
+                .map(Education::getDisplayOrder)
+                .defaultIfEmpty(0)
+                .reduce(Math::max)
+                .flatMap(maxOrder -> {
+                    Education newEducation = new Education();
+                    newEducation.setInstitutionName(education.getInstitutionName());
+                    newEducation.setDegree(education.getDegree());
+                    newEducation.setDisplayOrder(maxOrder + 1);
+                    return educationRepository.save(newEducation);
+                })
                 .map(EducationResponseDTO::from);
     }
 
@@ -57,6 +66,18 @@ public class EducationServiceImpl implements EducationService {
                     existing.setActive(active);
                     return educationRepository.save(existing);
                 })
+                .then();
+    }
+
+    @Override
+    public Mono<Void> reorder(List<Long> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> educationRepository.findById(tuple.getT2())
+                        .flatMap(e -> {
+                            e.setDisplayOrder(tuple.getT1().intValue());
+                            return educationRepository.save(e);
+                        }))
                 .then();
     }
 }

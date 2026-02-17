@@ -9,6 +9,8 @@ import org.vlad.vladportfoliobackend.utils.JsonUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Service
 public class HobbyServiceImpl implements HobbyService {
 
@@ -20,17 +22,24 @@ public class HobbyServiceImpl implements HobbyService {
 
     @Override
     public Flux<HobbyResponseDTO> getAllHobbies() {
-        return hobbyRepository.findAllByOrderByIdAsc()
+        return hobbyRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .map(HobbyResponseDTO::from);
     }
 
     @Override
     public Mono<HobbyResponseDTO> addHobby(HobbyRequestModel hobby) {
-        Hobby newHobby = new Hobby();
-        newHobby.setHobbyName(hobby.getHobbyName());
-        newHobby.setDescription(hobby.getDescription());
-        newHobby.setTags(JsonUtils.toJson(hobby.getTags()));
-        return hobbyRepository.save(newHobby)
+        return hobbyRepository.findAllByOrderByDisplayOrderAscIdAsc()
+                .map(Hobby::getDisplayOrder)
+                .defaultIfEmpty(0)
+                .reduce(Math::max)
+                .flatMap(maxOrder -> {
+                    Hobby newHobby = new Hobby();
+                    newHobby.setHobbyName(hobby.getHobbyName());
+                    newHobby.setDescription(hobby.getDescription());
+                    newHobby.setTags(JsonUtils.toJson(hobby.getTags()));
+                    newHobby.setDisplayOrder(maxOrder + 1);
+                    return hobbyRepository.save(newHobby);
+                })
                 .map(HobbyResponseDTO::from);
     }
 
@@ -60,6 +69,18 @@ public class HobbyServiceImpl implements HobbyService {
                     existing.setActive(active);
                     return hobbyRepository.save(existing);
                 })
+                .then();
+    }
+
+    @Override
+    public Mono<Void> reorder(List<Long> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> hobbyRepository.findById(tuple.getT2())
+                        .flatMap(h -> {
+                            h.setDisplayOrder(tuple.getT1().intValue());
+                            return hobbyRepository.save(h);
+                        }))
                 .then();
     }
 }

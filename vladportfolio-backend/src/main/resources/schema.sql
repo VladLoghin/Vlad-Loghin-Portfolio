@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS education (
     id BIGSERIAL PRIMARY KEY,
     institution_name TEXT NOT NULL,
     degree TEXT,
-    active BOOLEAN DEFAULT true
+    active BOOLEAN DEFAULT true,
+    display_order INT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS hobbies (
@@ -12,7 +13,8 @@ CREATE TABLE IF NOT EXISTS hobbies (
     hobby_name TEXT NOT NULL,
     description TEXT,
     tags TEXT DEFAULT '[]',
-    active BOOLEAN DEFAULT true
+    active BOOLEAN DEFAULT true,
+    display_order INT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -22,14 +24,16 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT,
     skills TEXT DEFAULT '[]',
     github_url TEXT,
-    active BOOLEAN DEFAULT true
+    active BOOLEAN DEFAULT true,
+    display_order INT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS skills (
     id SERIAL PRIMARY KEY,
     skill_name TEXT NOT NULL,
     subskills TEXT DEFAULT '[]',
-    active BOOLEAN DEFAULT true
+    active BOOLEAN DEFAULT true,
+    display_order INT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
@@ -37,7 +41,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     reviewer_name TEXT NOT NULL,
     content TEXT,
     rating TEXT,
-    approved BOOLEAN DEFAULT false
+    approved BOOLEAN DEFAULT false,
+    display_order INT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS sections (
@@ -64,3 +69,10 @@ CREATE TABLE IF NOT EXISTS profile_images (
     content_type TEXT,
     uploaded_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Migration: add display_order to existing tables
+ALTER TABLE education ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+ALTER TABLE hobbies ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+ALTER TABLE skills ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;

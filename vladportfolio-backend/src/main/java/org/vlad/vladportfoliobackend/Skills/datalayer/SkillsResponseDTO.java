@@ -15,13 +15,15 @@ public class SkillsResponseDTO {
     private String category;
     private List<String> items;
     private boolean active;
+    private int displayOrder;
 
     public static SkillsResponseDTO from(Skills skill) {
         return new SkillsResponseDTO(
                 String.valueOf(skill.getId()),
                 skill.getSkillName(),
                 JsonUtils.fromJson(skill.getSubskills()),
-                skill.isActive()
+                skill.isActive(),
+                skill.getDisplayOrder()
         );
     }
 }

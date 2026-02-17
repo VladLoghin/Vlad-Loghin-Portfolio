@@ -8,6 +8,8 @@ import org.vlad.vladportfoliobackend.Reviews.repositorylayer.ReviewRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Service
 public class ReviewServiceImpl implements ReviewService {
 
@@ -19,18 +21,25 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public Flux<ReviewResponseDTO> getAllReviews() {
-        return reviewRepository.findAll()
+        return reviewRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .map(ReviewResponseDTO::from);
     }
 
     @Override
     public Mono<ReviewResponseDTO> addReview(ReviewRequestDTO request) {
-        Review newReview = new Review();
-        newReview.setReviewerName(request.getReviewerName());
-        newReview.setContent(request.getContent());
-        newReview.setRating(request.getRating().name());
-        newReview.setApproved(false);
-        return reviewRepository.save(newReview)
+        return reviewRepository.findAllByOrderByDisplayOrderAscIdAsc()
+                .map(Review::getDisplayOrder)
+                .defaultIfEmpty(0)
+                .reduce(Math::max)
+                .flatMap(maxOrder -> {
+                    Review newReview = new Review();
+                    newReview.setReviewerName(request.getReviewerName());
+                    newReview.setContent(request.getContent());
+                    newReview.setRating(request.getRating().name());
+                    newReview.setApproved(false);
+                    newReview.setDisplayOrder(maxOrder + 1);
+                    return reviewRepository.save(newReview);
+                })
                 .map(ReviewResponseDTO::from);
     }
 
@@ -42,6 +51,18 @@ public class ReviewServiceImpl implements ReviewService {
                     review.setApproved(approved);
                     return reviewRepository.save(review);
                 })
+                .then();
+    }
+
+    @Override
+    public Mono<Void> reorder(List<Long> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> reviewRepository.findById(tuple.getT2())
+                        .flatMap(r -> {
+                            r.setDisplayOrder(tuple.getT1().intValue());
+                            return reviewRepository.save(r);
+                        }))
                 .then();
     }
 }

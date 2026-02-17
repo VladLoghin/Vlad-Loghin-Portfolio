@@ -12,13 +12,15 @@ public class EducationResponseDTO {
     private String institutionName;
     private String degree;
     private boolean active;
+    private int displayOrder;
 
     public static EducationResponseDTO from(Education education) {
         return new EducationResponseDTO(
                 String.valueOf(education.getId()),
                 education.getInstitutionName(),
                 education.getDegree(),
-                education.isActive()
+                education.isActive(),
+                education.getDisplayOrder()
         );
     }
 }

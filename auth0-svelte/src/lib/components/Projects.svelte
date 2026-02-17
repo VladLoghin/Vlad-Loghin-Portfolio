@@ -7,6 +7,7 @@
 		tags?: string[];
 		githubUrl?: string;
 		active: boolean;
+		displayOrder?: number;
 	};
 </script>
 
@@ -185,6 +186,65 @@
 		});
 	}
 
+	let draggedId: string | null = null;
+	let dragOverId: string | null = null;
+
+	function handleDragStart(e: DragEvent, id: string) {
+		draggedId = id;
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, id: string) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (id !== draggedId) dragOverId = id;
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	function handleDrop(e: DragEvent, targetId: string) {
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === targetId) return;
+
+		const fromIdx = projects.findIndex(p => p.id === draggedId);
+		const toIdx = projects.findIndex(p => p.id === targetId);
+		if (fromIdx < 0 || toIdx < 0) return;
+
+		const item = projects[fromIdx];
+		projects.splice(fromIdx, 1);
+		projects.splice(toIdx, 0, item);
+		projects = projects;
+
+		saveOrder();
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
+
+	async function saveOrder() {
+		const token = await getToken();
+		if (!token) return;
+
+		try {
+			await fetch('/api/projects/reorder', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(projects.map(p => p.id))
+			});
+		} catch (error) {
+			console.error('Failed to save order:', error);
+			await fetchProjects();
+		}
+	}
+
 	$: displayItems = $isAdmin ? projects : projects.filter(p => p.active);
 </script>
 
@@ -215,7 +275,18 @@
 	{:else if $isAdmin}
 		<div class="admin-grid">
 			{#each displayItems as project (project.id)}
-				<article class="card project-card grid-card" class:inactive-card={!project.active}>
+				<article
+				class="card project-card grid-card"
+				class:inactive-card={!project.active}
+				class:dragging={draggedId === project.id}
+				class:drag-over={dragOverId === project.id}
+				draggable="true"
+				on:dragstart={(e) => handleDragStart(e, project.id)}
+				on:dragover={(e) => handleDragOver(e, project.id)}
+				on:dragleave={handleDragLeave}
+				on:drop={(e) => handleDrop(e, project.id)}
+				on:dragend={handleDragEnd}
+			>
 					<div class="project-top">
 						<h3 class="h3">{project.name}</h3>
 						<div class="project-actions-top">
@@ -396,7 +467,10 @@
 	}
 	@media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
 	@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
-	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
+	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; cursor: grab; }
+	.grid-card:active { cursor: grabbing; }
+	.grid-card.dragging { opacity: 0.4; }
+	.grid-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
 	.carousel-wrapper {
 		display: flex; align-items: center; gap: 16px;

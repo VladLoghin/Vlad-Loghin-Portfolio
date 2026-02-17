@@ -9,6 +9,8 @@ import org.vlad.vladportfoliobackend.utils.JsonUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Service
 public class SkillsServiceImpl implements SkillsService {
 
@@ -20,16 +22,23 @@ public class SkillsServiceImpl implements SkillsService {
 
     @Override
     public Flux<SkillsResponseDTO> getAllSkills() {
-        return skillsRepository.findAllByOrderByIdAsc()
+        return skillsRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .map(SkillsResponseDTO::from);
     }
 
     @Override
     public Mono<SkillsResponseDTO> addSkill(SkillRequestDTO skill) {
-        Skills newSkill = new Skills();
-        newSkill.setSkillName(skill.getSkillName());
-        newSkill.setSubskills(JsonUtils.toJson(skill.getSubskills()));
-        return skillsRepository.save(newSkill)
+        return skillsRepository.findAllByOrderByDisplayOrderAscIdAsc()
+                .map(Skills::getDisplayOrder)
+                .defaultIfEmpty(0)
+                .reduce(Math::max)
+                .flatMap(maxOrder -> {
+                    Skills newSkill = new Skills();
+                    newSkill.setSkillName(skill.getSkillName());
+                    newSkill.setSubskills(JsonUtils.toJson(skill.getSubskills()));
+                    newSkill.setDisplayOrder(maxOrder + 1);
+                    return skillsRepository.save(newSkill);
+                })
                 .map(SkillsResponseDTO::from);
     }
 
@@ -58,6 +67,18 @@ public class SkillsServiceImpl implements SkillsService {
                     existing.setActive(active);
                     return skillsRepository.save(existing);
                 })
+                .then();
+    }
+
+    @Override
+    public Mono<Void> reorder(List<Integer> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> skillsRepository.findById(tuple.getT2())
+                        .flatMap(s -> {
+                            s.setDisplayOrder(tuple.getT1().intValue());
+                            return skillsRepository.save(s);
+                        }))
                 .then();
     }
 }

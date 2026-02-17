@@ -7,6 +7,7 @@
     content: string;
     rating: number;
     approved: boolean;
+    displayOrder?: number;
   };
 </script>
 
@@ -164,6 +165,65 @@
     }
   }
 
+  let draggedId: string | null = null;
+  let dragOverId: string | null = null;
+
+  function handleDragStart(e: DragEvent, id: string) {
+    draggedId = id;
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e: DragEvent, id: string) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    if (id !== draggedId) dragOverId = id;
+  }
+
+  function handleDragLeave() {
+    dragOverId = null;
+  }
+
+  function handleDrop(e: DragEvent, targetId: string) {
+    e.preventDefault();
+    dragOverId = null;
+    if (!draggedId || draggedId === targetId) return;
+
+    const fromIdx = reviews.findIndex(r => r.id === draggedId);
+    const toIdx = reviews.findIndex(r => r.id === targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    const item = reviews[fromIdx];
+    reviews.splice(fromIdx, 1);
+    reviews.splice(toIdx, 0, item);
+    reviews = reviews;
+
+    saveOrder();
+  }
+
+  function handleDragEnd() {
+    draggedId = null;
+    dragOverId = null;
+  }
+
+  async function saveOrder() {
+    const token = await getToken();
+    if (!token) return;
+
+    try {
+      await fetch('/api/reviews/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(reviews.map(r => r.id))
+      });
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      await fetchReviews();
+    }
+  }
+
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       if (successOpen) closeSuccess();
@@ -194,7 +254,18 @@
   {:else if $isAdmin}
     <div class="admin-grid">
       {#each visibleReviews as review (review.id)}
-        <article class="card review-card grid-card" class:unapproved={!review.approved}>
+        <article
+          class="card review-card grid-card"
+          class:unapproved={!review.approved}
+          class:dragging={draggedId === review.id}
+          class:drag-over={dragOverId === review.id}
+          draggable="true"
+          on:dragstart={(e) => handleDragStart(e, review.id)}
+          on:dragover={(e) => handleDragOver(e, review.id)}
+          on:dragleave={handleDragLeave}
+          on:drop={(e) => handleDrop(e, review.id)}
+          on:dragend={handleDragEnd}
+        >
           <div class="admin-badge-row">
             <span class="approval-badge" class:approved={review.approved} class:pending={!review.approved}>
               {review.approved ? "Approved" : "Pending"}
@@ -405,7 +476,10 @@
   }
   @media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
-  .grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
+  .grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; cursor: grab; }
+  .grid-card:active { cursor: grabbing; }
+  .grid-card.dragging { opacity: 0.4; }
+  .grid-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
   @media (max-width: 980px) {
     .reviews-carousel {

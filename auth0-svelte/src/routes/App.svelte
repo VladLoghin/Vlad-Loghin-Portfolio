@@ -5,6 +5,7 @@
     isLoading,
     user,
     login,
+    signup,
     logout,
     isAuthenticated,
     initializeAuth
@@ -95,7 +96,7 @@
             <button class="nav-btn ghost" on:click={signOut}>Log out</button>
           {:else}
             <button class="nav-btn ghost" on:click={login}>Log in</button>
-            <button class="nav-btn primary" on:click={login}>Sign up</button>
+            <button class="nav-btn primary" on:click={signup}>Sign up</button>
           {/if}
         </div>
       </nav>

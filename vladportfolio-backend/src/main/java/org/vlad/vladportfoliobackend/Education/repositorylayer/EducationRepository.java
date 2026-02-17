@@ -5,5 +5,5 @@ import org.vlad.vladportfoliobackend.Education.datalayer.Education;
 import reactor.core.publisher.Flux;
 
 public interface EducationRepository extends ReactiveCrudRepository<Education, Long> {
-    Flux<Education> findAllByOrderByIdAsc();
+    Flux<Education> findAllByOrderByDisplayOrderAscIdAsc();
 }

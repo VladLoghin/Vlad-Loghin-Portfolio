@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
-  import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken, error, emailVerified } from "$lib/stores/auth";
+  import { isLoading, user, login, signup, logout, isAuthenticated, isAdmin, getToken, error, emailVerified } from "$lib/stores/auth";
   import Projects from "$lib/components/Projects.svelte";
   import Hobbies from "$lib/components/Hobbies.svelte";
   import Reviews from "$lib/components/Reviews.svelte";
@@ -452,7 +452,7 @@
             <button class="nav-btn ghost" on:click={signOut}>Log out</button>
           {:else}
             <button class="nav-btn ghost" on:click={login}>Log in</button>
-            <button class="nav-btn primary" on:click={login}>Sign up</button>
+            <button class="nav-btn primary" on:click={signup}>Sign up</button>
           {/if}
         </div>
       </nav>
@@ -492,10 +492,10 @@
               {#if $isLoading}
                 <button class="nav-btn ghost" disabled>Loading...</button>
               {:else if $isAuthenticated}
-                <button class="nav-btn ghost" on:click={signOut}>Log out</button>
+                <button class="nav-btn ghost" on:click={() => { signOut(); closeMobileMenu(); }}>Log out</button>
               {:else}
                 <button class="nav-btn ghost" on:click={() => { login(); closeMobileMenu(); }}>Log in</button>
-                <button class="nav-btn primary" on:click={() => { login(); closeMobileMenu(); }}>Sign up</button>
+                <button class="nav-btn primary" on:click={() => { signup(); closeMobileMenu(); }}>Sign up</button>
               {/if}
             </div>
           </div>
@@ -704,14 +704,30 @@
           <p class="cv-upload-msg error">Upload failed. Please try again.</p>
         {/if}
 
-        <div class="cv-viewer card">
+        <div class="cv-viewer card cv-desktop">
           <iframe
             title="CV - {cvLang === 'en' ? 'English' : 'French'}"
             src={cvUrl}
             width="100%"
             height="800"
-            style="border: none; border-radius: 12px;"
+            class="cv-iframe"
           ></iframe>
+        </div>
+
+        <div class="cv-mobile card">
+          <div class="cv-mobile-inner">
+            <svg class="cv-mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <p class="cv-mobile-label">CV — {cvLang === "en" ? "English" : "French"}</p>
+            <a class="cv-mobile-btn" href={cvUrl} target="_blank" rel="noopener noreferrer">
+              Open PDF
+            </a>
+          </div>
         </div>
       </section>
 
@@ -956,7 +972,7 @@
   }
 
   .hamburger.active span:nth-child(1) {
-    transform: rotate(45deg) translate(10px, 10px);
+    transform: translateY(7.5px) rotate(45deg);
   }
 
   .hamburger.active span:nth-child(2) {
@@ -964,7 +980,7 @@
   }
 
   .hamburger.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
+    transform: translateY(-7.5px) rotate(-45deg);
   }
 
   .mobile-menu {
@@ -1057,6 +1073,10 @@
   @media (max-width: 768px) {
     .nav-links-desktop,
     .nav-actions-desktop {
+      display: none;
+    }
+
+    .nav-shell > .lang-switch {
       display: none;
     }
 
@@ -1307,6 +1327,16 @@
     cursor: not-allowed;
   }
 
+  .nav-btn.ghost {
+    background: transparent;
+    color: var(--green-d);
+    border: 1px solid var(--border);
+  }
+
+  .nav-btn.ghost:hover:not(:disabled) {
+    background: rgba(56, 197, 94, 0.08);
+  }
+
   .nav-btn.primary {
     background: var(--green);
     color: white;
@@ -1510,11 +1540,57 @@
     display: block;
     width: 100%;
     min-height: 600px;
+    border: none;
+    border-radius: 12px;
+  }
+
+  .cv-mobile {
+    display: none;
+  }
+
+  .cv-mobile-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .cv-mobile-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--green);
+  }
+
+  .cv-mobile-label {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--green-d);
+  }
+
+  .cv-mobile-btn {
+    display: inline-block;
+    padding: 12px 32px;
+    background: var(--green);
+    color: white;
+    font-weight: 700;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .cv-mobile-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(56, 197, 94, 0.3);
   }
 
   @media (max-width: 768px) {
-    .cv-viewer iframe {
-      min-height: 400px;
+    .cv-desktop {
+      display: none;
+    }
+    .cv-mobile {
+      display: block;
     }
   }
 

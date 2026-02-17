@@ -4,6 +4,7 @@
 		institutionName: string;
 		degree: string;
 		active: boolean;
+		displayOrder?: number;
 	};
 </script>
 
@@ -202,6 +203,65 @@
 		});
 	}
 
+	let draggedId: string | null = null;
+	let dragOverId: string | null = null;
+
+	function handleDragStart(e: DragEvent, id: string) {
+		draggedId = id;
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, id: string) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (id !== draggedId) dragOverId = id;
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	function handleDrop(e: DragEvent, targetId: string) {
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === targetId) return;
+
+		const fromIdx = educationItems.findIndex(i => i.id === draggedId);
+		const toIdx = educationItems.findIndex(i => i.id === targetId);
+		if (fromIdx < 0 || toIdx < 0) return;
+
+		const item = educationItems[fromIdx];
+		educationItems.splice(fromIdx, 1);
+		educationItems.splice(toIdx, 0, item);
+		educationItems = educationItems;
+
+		saveOrder();
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
+
+	async function saveOrder() {
+		const token = await getToken();
+		if (!token) return;
+
+		try {
+			await fetch(`${API_BASE}/education/reorder`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(educationItems.map(i => i.id))
+			});
+		} catch (error) {
+			console.error('Failed to save order:', error);
+			await fetchEducation();
+		}
+	}
+
 	$: visibleItems = $isAdmin
 		? educationItems
 		: educationItems.filter(item => item.active);
@@ -238,7 +298,18 @@
 	{:else if $isAdmin}
 		<div class="admin-grid">
 			{#each displayItems as item (item.id)}
-				<article class="card education-card grid-card" class:inactive-card={!item.active}>
+				<article
+				class="card education-card grid-card"
+				class:inactive-card={!item.active}
+				class:dragging={draggedId === item.id}
+				class:drag-over={dragOverId === item.id}
+				draggable="true"
+				on:dragstart={(e) => handleDragStart(e, item.id)}
+				on:dragover={(e) => handleDragOver(e, item.id)}
+				on:dragleave={handleDragLeave}
+				on:drop={(e) => handleDrop(e, item.id)}
+				on:dragend={handleDragEnd}
+			>
 					<div class="edu-icon">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
 							<path d="M22 10v6M2 10l10-5 10 5-10 5z" />
@@ -404,7 +475,11 @@
 		flex: unset;
 		max-width: unset;
 		scroll-snap-align: unset;
+		cursor: grab;
 	}
+	.grid-card:active { cursor: grabbing; }
+	.grid-card.dragging { opacity: 0.4; }
+	.grid-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
 	.carousel-wrapper {
 		display: flex;

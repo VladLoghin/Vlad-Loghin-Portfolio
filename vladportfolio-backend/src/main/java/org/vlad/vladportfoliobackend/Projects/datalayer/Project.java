@@ -17,4 +17,5 @@ public class Project {
     private String skills;
     private String githubUrl;
     private boolean active = true;
+    private Integer displayOrder = 0;
 }
