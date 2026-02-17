@@ -5,6 +5,8 @@ import org.vlad.vladportfoliobackend.Skills.datalayer.SkillsResponseDTO;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 public interface SkillsService {
 
     Flux<SkillsResponseDTO> getAllSkills();
@@ -16,4 +18,6 @@ public interface SkillsService {
     Mono<Void> deleteSkill(int skillId);
 
     Mono<Void> toggleActive(int skillId, boolean active);
+
+    Mono<Void> reorder(List<Integer> orderedIds);
 }

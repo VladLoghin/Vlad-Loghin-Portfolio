@@ -5,5 +5,5 @@ import org.vlad.vladportfoliobackend.Projects.datalayer.Project;
 import reactor.core.publisher.Flux;
 
 public interface ProjectRepository extends ReactiveCrudRepository<Project, Long> {
-    Flux<Project> findAllByOrderByIdAsc();
+    Flux<Project> findAllByOrderByDisplayOrderAscIdAsc();
 }

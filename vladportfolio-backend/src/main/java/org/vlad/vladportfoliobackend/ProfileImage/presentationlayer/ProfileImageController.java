@@ -4,6 +4,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.vlad.vladportfoliobackend.ProfileImage.servicelayer.ProfileImageService;
 import reactor.core.publisher.Mono;
@@ -27,6 +28,7 @@ public class ProfileImageController {
                         .body((Resource) new ByteArrayResource(img.getData())));
     }
 
+    @PreAuthorize("hasRole('Admin')")
     @PostMapping("/profile-image/upload")
     public Mono<ResponseEntity<Void>> uploadProfileImage(
             @RequestPart("file") FilePart file) {

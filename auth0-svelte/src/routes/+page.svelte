@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
-  import { isLoading, user, login, logout, isAuthenticated, isAdmin, getToken, error, emailVerified } from "$lib/stores/auth";
+  import { isLoading, user, login, signup, logout, isAuthenticated, isAdmin, getToken, error, emailVerified } from "$lib/stores/auth";
   import Projects from "$lib/components/Projects.svelte";
   import Hobbies from "$lib/components/Hobbies.svelte";
   import Reviews from "$lib/components/Reviews.svelte";
@@ -145,21 +145,25 @@
     translateReady = true;
   }
 
+  let translating = false;
+
   function toggleLanguage() {
     const target = currentLang === "en" ? "fr" : "en";
+    translating = true;
 
-    if (target === "en") {
-      // Switching back to English: clear all cookies and reload cleanly
-      clearGoogTransCookies();
-      currentLang = "en";
-      window.location.reload();
-    } else {
-      // Switching to French: set cookie and reload
-      clearGoogTransCookies();
-      document.cookie = "googtrans=/en/fr; path=/";
-      currentLang = "fr";
-      window.location.reload();
-    }
+    // Small delay so the loading overlay renders before reload
+    requestAnimationFrame(() => {
+      if (target === "en") {
+        clearGoogTransCookies();
+        currentLang = "en";
+        window.location.reload();
+      } else {
+        clearGoogTransCookies();
+        document.cookie = "googtrans=/en/fr; path=/";
+        currentLang = "fr";
+        window.location.reload();
+      }
+    });
   }
 
   // --- Profile image ---
@@ -241,22 +245,12 @@
 
   // --- Contact form ---
   let contactName = "";
-  let contactEmail = "";
   let contactMessage = "";
   let contactSending = false;
   let contactStatus: "idle" | "success" | "error" = "idle";
-  let contactEmailError = "";
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   async function handleContactSubmit(e: Event) {
     e.preventDefault();
-    contactEmailError = "";
-
-    if (!emailRegex.test(contactEmail)) {
-      contactEmailError = "Please enter a valid email address.";
-      return;
-    }
 
     contactSending = true;
     contactStatus = "idle";
@@ -267,22 +261,14 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: contactName,
-          email: contactEmail,
+          email: $user?.email,
           message: contactMessage
         })
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        if (res.status === 400 && data?.error) {
-          contactEmailError = data.error;
-          return;
-        }
-        throw new Error("Failed to send");
-      }
+      if (!res.ok) throw new Error("Failed to send");
       contactStatus = "success";
       contactName = "";
-      contactEmail = "";
       contactMessage = "";
     } catch {
       contactStatus = "error";
@@ -351,6 +337,16 @@
 
 <!-- Hidden Google Translate container -->
 <div id="google_translate_element" style="display:none;"></div>
+
+<!-- Translation loading overlay -->
+{#if translating}
+  <div class="translate-overlay">
+    <div class="translate-loader">
+      <div class="translate-spinner"></div>
+      <p>Translating...</p>
+    </div>
+  </div>
+{/if}
 
 <!-- Background -->
 <div class="leaf-bg" aria-hidden="true">
@@ -423,9 +419,16 @@
           {/if}
         </div>
 
-        <!-- Language Toggle -->
-        <button class="lang-toggle" on:click={toggleLanguage} aria-label="Toggle language">
-          {currentLang === "en" ? "FR" : "EN"}
+        <!-- Language Toggle Switch -->
+        <button
+          class="lang-switch"
+          class:fr={currentLang === "fr"}
+          on:click={toggleLanguage}
+          aria-label="Toggle language"
+        >
+          <span class="lang-label lang-en">EN</span>
+          <span class="lang-label lang-fr">FR</span>
+          <span class="lang-knob"></span>
         </button>
 
         <!-- Mobile Hamburger -->
@@ -449,7 +452,7 @@
             <button class="nav-btn ghost" on:click={signOut}>Log out</button>
           {:else}
             <button class="nav-btn ghost" on:click={login}>Log in</button>
-            <button class="nav-btn primary" on:click={login}>Sign up</button>
+            <button class="nav-btn primary" on:click={signup}>Sign up</button>
           {/if}
         </div>
       </nav>
@@ -471,18 +474,28 @@
             {/if}
 
             <!-- Mobile Language Toggle -->
-            <button class="lang-toggle mobile-lang" on:click={toggleLanguage}>
-              {currentLang === "en" ? "Switch to French" : "Switch to English"}
-            </button>
+            <div class="mobile-lang-row">
+              <span class="mobile-lang-label">Language</span>
+              <button
+                class="lang-switch"
+                class:fr={currentLang === "fr"}
+                on:click={toggleLanguage}
+                aria-label="Toggle language"
+              >
+                <span class="lang-label lang-en">EN</span>
+                <span class="lang-label lang-fr">FR</span>
+                <span class="lang-knob"></span>
+              </button>
+            </div>
 
             <div class="mobile-actions">
               {#if $isLoading}
                 <button class="nav-btn ghost" disabled>Loading...</button>
               {:else if $isAuthenticated}
-                <button class="nav-btn ghost" on:click={signOut}>Log out</button>
+                <button class="nav-btn ghost" on:click={() => { signOut(); closeMobileMenu(); }}>Log out</button>
               {:else}
                 <button class="nav-btn ghost" on:click={() => { login(); closeMobileMenu(); }}>Log in</button>
-                <button class="nav-btn primary" on:click={() => { login(); closeMobileMenu(); }}>Sign up</button>
+                <button class="nav-btn primary" on:click={() => { signup(); closeMobileMenu(); }}>Sign up</button>
               {/if}
             </div>
           </div>
@@ -691,14 +704,30 @@
           <p class="cv-upload-msg error">Upload failed. Please try again.</p>
         {/if}
 
-        <div class="cv-viewer card">
+        <div class="cv-viewer card cv-desktop">
           <iframe
             title="CV - {cvLang === 'en' ? 'English' : 'French'}"
             src={cvUrl}
             width="100%"
             height="800"
-            style="border: none; border-radius: 12px;"
+            class="cv-iframe"
           ></iframe>
+        </div>
+
+        <div class="cv-mobile card">
+          <div class="cv-mobile-inner">
+            <svg class="cv-mobile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <p class="cv-mobile-label">CV — {cvLang === "en" ? "English" : "French"}</p>
+            <a class="cv-mobile-btn" href={cvUrl} target="_blank" rel="noopener noreferrer">
+              Open PDF
+            </a>
+          </div>
         </div>
       </section>
 
@@ -722,30 +751,30 @@
         <div class="contact-container">
           <article class="card contact-form-card">
             <h3 class="h3">Send me a message</h3>
-            <form class="contact-form" on:submit={handleContactSubmit}>
-              <div class="form-group">
-                <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
-              </div>
-              <div class="form-group">
-                <input class="input" class:input-error={contactEmailError} type="email" placeholder="Your email" required bind:value={contactEmail} on:input={() => contactEmailError = ""} />
-                {#if contactEmailError}
-                  <p class="field-error">{contactEmailError}</p>
-                {/if}
-              </div>
-              <div class="form-group">
-                <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
-              </div>
-              <button class="nav-btn primary" type="submit" disabled={contactSending}>
-                {contactSending ? "Sending..." : "Send message"}
-              </button>
+            {#if $isAuthenticated}
+              <p class="p small muted" style="margin-bottom:12px;">Sending as <strong>{$user?.email}</strong></p>
+              <form class="contact-form" on:submit={handleContactSubmit}>
+                <div class="form-group">
+                  <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
+                </div>
+                <div class="form-group">
+                  <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
+                </div>
+                <button class="nav-btn primary" type="submit" disabled={contactSending}>
+                  {contactSending ? "Sending..." : "Send message"}
+                </button>
 
-              {#if contactStatus === "success"}
-                <p class="contact-success">Message sent! I'll get back to you soon.</p>
-              {/if}
-              {#if contactStatus === "error"}
-                <p class="contact-error">Something went wrong. Please try again or email me directly.</p>
-              {/if}
-            </form>
+                {#if contactStatus === "success"}
+                  <p class="contact-success">Message sent! I'll get back to you soon.</p>
+                {/if}
+                {#if contactStatus === "error"}
+                  <p class="contact-error">Something went wrong. Please try again or email me directly.</p>
+                {/if}
+              </form>
+            {:else}
+              <p class="p muted" style="margin:24px 0;">Log in to send me a message — your email will be filled in automatically.</p>
+              <button class="nav-btn primary" type="button" on:click={login}>Log in to continue</button>
+            {/if}
           </article>
 
           <article class="card contact-info-card">
@@ -812,31 +841,108 @@
     scroll-margin-top: 120px;
   }
 
-  /* --- LANGUAGE TOGGLE --- */
-  .lang-toggle {
-    padding: 6px 14px;
+  /* --- LANGUAGE TOGGLE SWITCH --- */
+  .lang-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 64px;
+    height: 30px;
     border-radius: 999px;
     border: 1px solid var(--border);
-    background: rgba(56, 197, 94, 0.1);
+    background: rgba(56, 197, 94, 0.12);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.3s ease;
+  }
+
+  .lang-switch:hover {
+    background: rgba(56, 197, 94, 0.22);
+  }
+
+  .lang-label {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    transition: color 0.3s ease;
+    pointer-events: none;
+    line-height: 30px;
+  }
+
+  .lang-en { color: #fff; }
+  .lang-fr { color: var(--green-d); }
+
+  .lang-switch.fr .lang-en { color: var(--green-d); }
+  .lang-switch.fr .lang-fr { color: #fff; }
+
+  .lang-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lang-switch.fr .lang-knob {
+    transform: translateX(34px);
+  }
+
+  .mobile-lang-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding: 8px 0;
+  }
+
+  .mobile-lang-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--green-d);
+  }
+
+  /* --- TRANSLATION LOADING OVERLAY --- */
+  .translate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(244, 241, 234, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .translate-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     color: var(--green-d);
     font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    white-space: nowrap;
+    font-size: 1.1rem;
   }
 
-  .lang-toggle:hover {
-    background: rgba(56, 197, 94, 0.2);
-    transform: translateY(-1px);
+  .translate-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(56, 197, 94, 0.2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
   }
 
-  .mobile-lang {
-    width: 100%;
-    padding: 12px 16px;
-    font-size: 0.95rem;
-    border-radius: 8px;
-    margin-top: 8px;
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   /* --- MOBILE MENU --- */
@@ -866,7 +972,7 @@
   }
 
   .hamburger.active span:nth-child(1) {
-    transform: rotate(45deg) translate(10px, 10px);
+    transform: translateY(7.5px) rotate(45deg);
   }
 
   .hamburger.active span:nth-child(2) {
@@ -874,7 +980,7 @@
   }
 
   .hamburger.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
+    transform: translateY(-7.5px) rotate(-45deg);
   }
 
   .mobile-menu {
@@ -967,6 +1073,10 @@
   @media (max-width: 768px) {
     .nav-links-desktop,
     .nav-actions-desktop {
+      display: none;
+    }
+
+    .nav-shell > .lang-switch {
       display: none;
     }
 
@@ -1217,6 +1327,16 @@
     cursor: not-allowed;
   }
 
+  .nav-btn.ghost {
+    background: transparent;
+    color: var(--green-d);
+    border: 1px solid var(--border);
+  }
+
+  .nav-btn.ghost:hover:not(:disabled) {
+    background: rgba(56, 197, 94, 0.08);
+  }
+
   .nav-btn.primary {
     background: var(--green);
     color: white;
@@ -1420,11 +1540,57 @@
     display: block;
     width: 100%;
     min-height: 600px;
+    border: none;
+    border-radius: 12px;
+  }
+
+  .cv-mobile {
+    display: none;
+  }
+
+  .cv-mobile-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .cv-mobile-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--green);
+  }
+
+  .cv-mobile-label {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--green-d);
+  }
+
+  .cv-mobile-btn {
+    display: inline-block;
+    padding: 12px 32px;
+    background: var(--green);
+    color: white;
+    font-weight: 700;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .cv-mobile-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(56, 197, 94, 0.3);
   }
 
   @media (max-width: 768px) {
-    .cv-viewer iframe {
-      min-height: 400px;
+    .cv-desktop {
+      display: none;
+    }
+    .cv-mobile {
+      display: block;
     }
   }
 

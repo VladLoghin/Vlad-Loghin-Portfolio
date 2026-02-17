@@ -4,6 +4,7 @@
 		category: string;
 		items: string[];
 		active: boolean;
+		displayOrder?: number;
 	};
 </script>
 
@@ -143,6 +144,68 @@
 		}
 	}
 
+	let draggedId: string | null = null;
+	let dragOverId: string | null = null;
+
+	function handleDragStart(e: DragEvent, id: string) {
+		if (!$isAdmin) return;
+		draggedId = id;
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, id: string) {
+		if (!$isAdmin) return;
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (id !== draggedId) dragOverId = id;
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	function handleDrop(e: DragEvent, targetId: string) {
+		if (!$isAdmin) return;
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === targetId) return;
+
+		const fromIdx = skills.findIndex(s => s.id === draggedId);
+		const toIdx = skills.findIndex(s => s.id === targetId);
+		if (fromIdx < 0 || toIdx < 0) return;
+
+		const item = skills[fromIdx];
+		skills.splice(fromIdx, 1);
+		skills.splice(toIdx, 0, item);
+		skills = skills;
+
+		saveOrder();
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
+
+	async function saveOrder() {
+		const token = await getToken();
+		if (!token) return;
+
+		try {
+			await fetch('/api/skills/reorder', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(skills.map(s => s.id))
+			});
+		} catch (error) {
+			console.error('Failed to save order:', error);
+			await fetchSkills();
+		}
+	}
+
 	$: displayItems = $isAdmin ? skills : skills.filter(s => s.active);
 </script>
 
@@ -173,7 +236,18 @@
 	{:else}
 		<div class="skills-grid">
 			{#each displayItems as skill (skill.id)}
-				<article class="card skill-card" class:inactive-card={!skill.active}>
+				<article
+				class="card skill-card"
+				class:inactive-card={!skill.active}
+				class:dragging={draggedId === skill.id}
+				class:drag-over={dragOverId === skill.id}
+				draggable={$isAdmin}
+				on:dragstart={(e) => handleDragStart(e, skill.id)}
+				on:dragover={(e) => handleDragOver(e, skill.id)}
+				on:dragleave={handleDragLeave}
+				on:drop={(e) => handleDrop(e, skill.id)}
+				on:dragend={handleDragEnd}
+			>
 					{#if $isAdmin}
 						<button class="pen-btn" type="button" aria-label="Edit {skill.category}" on:click={() => openEditModal(skill)}>
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -283,6 +357,8 @@
 		transition: transform 0.25s ease, box-shadow 0.25s ease;
 	}
 	.skill-card:hover { transform: translateY(-2px); box-shadow: 0 24px 70px rgba(0,0,0,0.2); }
+	.skill-card.dragging { opacity: 0.4; }
+	.skill-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
 	.inactive-card { opacity: 0.6; border: 2px dashed rgba(255, 152, 0, 0.4); }
 

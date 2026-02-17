@@ -17,4 +17,5 @@ public class Hobby {
     private String description;
     private String tags;
     private boolean active = true;
+    private Integer displayOrder = 0;
 }

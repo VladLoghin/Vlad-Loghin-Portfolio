@@ -16,4 +16,5 @@ public class Education {
     private String institutionName;
     private String degree;
     private boolean active = true;
+    private Integer displayOrder = 0;
 }

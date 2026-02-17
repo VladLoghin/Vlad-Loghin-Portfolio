@@ -17,4 +17,5 @@ public class Review {
     private String content;
     private String rating;
     private boolean approved = false;
+    private Integer displayOrder = 0;
 }

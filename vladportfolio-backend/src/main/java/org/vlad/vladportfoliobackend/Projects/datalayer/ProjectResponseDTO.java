@@ -18,6 +18,7 @@ public class ProjectResponseDTO {
     private List<String> tags;
     private String githubUrl;
     private boolean active;
+    private int displayOrder;
 
     public static ProjectResponseDTO from(Project project) {
         return new ProjectResponseDTO(
@@ -27,7 +28,8 @@ public class ProjectResponseDTO {
                 project.getDescription(),
                 JsonUtils.fromJson(project.getSkills()),
                 project.getGithubUrl(),
-                project.isActive()
+                project.isActive(),
+                project.getDisplayOrder()
         );
     }
 }

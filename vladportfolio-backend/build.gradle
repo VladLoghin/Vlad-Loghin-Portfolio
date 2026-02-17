@@ -35,14 +35,17 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
 	runtimeOnly 'org.postgresql:r2dbc-postgresql'
 
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+
 	// Mail
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
 	// Jackson (JSON serialization for collection fields)
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 
-	// Security (reactive — CORS + CSRF config only; Auth0 is frontend-side)
+	// Security (reactive) + OAuth2 Resource Server (Auth0 JWT validation)
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'

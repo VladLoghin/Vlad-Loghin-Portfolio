@@ -4,6 +4,7 @@
 		institutionName: string;
 		degree: string;
 		active: boolean;
+		displayOrder?: number;
 	};
 </script>
 
@@ -177,11 +178,88 @@
 
 	function scroll(direction: 'left' | 'right') {
 		if (!scrollContainer) return;
-		const amount = 400;
+		const children = Array.from(scrollContainer.children) as HTMLElement[];
+		if (children.length === 0) return;
+
+		const containerRect = scrollContainer.getBoundingClientRect();
+		const centerX = containerRect.left + containerRect.width / 2;
+
+		let closestIdx = 0;
+		let minDist = Infinity;
+		children.forEach((child, i) => {
+			const r = child.getBoundingClientRect();
+			const dist = Math.abs(r.left + r.width / 2 - centerX);
+			if (dist < minDist) { minDist = dist; closestIdx = i; }
+		});
+
+		const nextIdx = direction === 'left'
+			? (closestIdx === 0 ? children.length - 1 : closestIdx - 1)
+			: (closestIdx === children.length - 1 ? 0 : closestIdx + 1);
+
+		const targetRect = children[nextIdx].getBoundingClientRect();
 		scrollContainer.scrollBy({
-			left: direction === 'left' ? -amount : amount,
+			left: targetRect.left + targetRect.width / 2 - centerX,
 			behavior: 'smooth'
 		});
+	}
+
+	let draggedId: string | null = null;
+	let dragOverId: string | null = null;
+
+	function handleDragStart(e: DragEvent, id: string) {
+		draggedId = id;
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, id: string) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (id !== draggedId) dragOverId = id;
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	function handleDrop(e: DragEvent, targetId: string) {
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === targetId) return;
+
+		const fromIdx = educationItems.findIndex(i => i.id === draggedId);
+		const toIdx = educationItems.findIndex(i => i.id === targetId);
+		if (fromIdx < 0 || toIdx < 0) return;
+
+		const item = educationItems[fromIdx];
+		educationItems.splice(fromIdx, 1);
+		educationItems.splice(toIdx, 0, item);
+		educationItems = educationItems;
+
+		saveOrder();
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
+
+	async function saveOrder() {
+		const token = await getToken();
+		if (!token) return;
+
+		try {
+			await fetch(`${API_BASE}/education/reorder`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(educationItems.map(i => i.id))
+			});
+		} catch (error) {
+			console.error('Failed to save order:', error);
+			await fetchEducation();
+		}
 	}
 
 	$: visibleItems = $isAdmin
@@ -220,7 +298,18 @@
 	{:else if $isAdmin}
 		<div class="admin-grid">
 			{#each displayItems as item (item.id)}
-				<article class="card education-card grid-card" class:inactive-card={!item.active}>
+				<article
+				class="card education-card grid-card"
+				class:inactive-card={!item.active}
+				class:dragging={draggedId === item.id}
+				class:drag-over={dragOverId === item.id}
+				draggable="true"
+				on:dragstart={(e) => handleDragStart(e, item.id)}
+				on:dragover={(e) => handleDragOver(e, item.id)}
+				on:dragleave={handleDragLeave}
+				on:drop={(e) => handleDrop(e, item.id)}
+				on:dragend={handleDragEnd}
+			>
 					<div class="edu-icon">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
 							<path d="M22 10v6M2 10l10-5 10 5-10 5z" />
@@ -256,7 +345,6 @@
 		<div class="carousel-wrapper">
 			<button
 				class="carousel-btn carousel-btn--left"
-				class:disabled={!canScrollLeft}
 				on:click={() => scroll('left')}
 				aria-label="Scroll education left"
 			>
@@ -286,7 +374,6 @@
 
 			<button
 				class="carousel-btn carousel-btn--right"
-				class:disabled={!canScrollRight}
 				on:click={() => scroll('right')}
 				aria-label="Scroll education right"
 			>
@@ -388,7 +475,11 @@
 		flex: unset;
 		max-width: unset;
 		scroll-snap-align: unset;
+		cursor: grab;
 	}
+	.grid-card:active { cursor: grabbing; }
+	.grid-card.dragging { opacity: 0.4; }
+	.grid-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
 	.carousel-wrapper {
 		display: flex;

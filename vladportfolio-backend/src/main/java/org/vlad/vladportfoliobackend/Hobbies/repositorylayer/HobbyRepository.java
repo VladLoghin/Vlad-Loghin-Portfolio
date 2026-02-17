@@ -5,5 +5,5 @@ import org.vlad.vladportfoliobackend.Hobbies.datalayer.Hobby;
 import reactor.core.publisher.Flux;
 
 public interface HobbyRepository extends ReactiveCrudRepository<Hobby, Long> {
-    Flux<Hobby> findAllByOrderByIdAsc();
+    Flux<Hobby> findAllByOrderByDisplayOrderAscIdAsc();
 }

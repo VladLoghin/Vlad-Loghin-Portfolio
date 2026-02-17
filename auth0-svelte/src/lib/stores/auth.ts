@@ -127,6 +127,20 @@ export async function login() {
   }
 }
 
+export async function signup() {
+  const client = get(auth0Client);
+  if (!client) return;
+  try {
+    await client.loginWithRedirect({
+      authorizationParams: {
+        screen_hint: 'signup'
+      }
+    });
+  } catch (err) {
+    console.error('signup redirect failed:', err);
+  }
+}
+
 export async function logout() {
   const client = get(auth0Client);
   if (!client) return;

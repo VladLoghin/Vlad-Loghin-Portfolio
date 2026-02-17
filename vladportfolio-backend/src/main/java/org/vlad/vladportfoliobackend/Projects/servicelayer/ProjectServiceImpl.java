@@ -9,6 +9,8 @@ import org.vlad.vladportfoliobackend.utils.JsonUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Service
 public class ProjectServiceImpl implements ProjectService {
 
@@ -20,19 +22,26 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public Flux<ProjectResponseDTO> getAllProjects() {
-        return projectRepository.findAllByOrderByIdAsc()
+        return projectRepository.findAllByOrderByDisplayOrderAscIdAsc()
                 .map(ProjectResponseDTO::from);
     }
 
     @Override
     public Mono<ProjectResponseDTO> createProject(ProjectRequestDTO request) {
-        Project entity = new Project();
-        entity.setProjectName(request.getProjectName());
-        entity.setTag(request.getTag());
-        entity.setDescription(request.getDescription());
-        entity.setSkills(JsonUtils.toJson(request.getSkills()));
-        entity.setGithubUrl(request.getGithubUrl());
-        return projectRepository.save(entity)
+        return projectRepository.findAllByOrderByDisplayOrderAscIdAsc()
+                .map(Project::getDisplayOrder)
+                .defaultIfEmpty(0)
+                .reduce(Math::max)
+                .flatMap(maxOrder -> {
+                    Project entity = new Project();
+                    entity.setProjectName(request.getProjectName());
+                    entity.setTag(request.getTag());
+                    entity.setDescription(request.getDescription());
+                    entity.setSkills(JsonUtils.toJson(request.getSkills()));
+                    entity.setGithubUrl(request.getGithubUrl());
+                    entity.setDisplayOrder(maxOrder + 1);
+                    return projectRepository.save(entity);
+                })
                 .map(ProjectResponseDTO::from);
     }
 
@@ -76,6 +85,18 @@ public class ProjectServiceImpl implements ProjectService {
                     existing.setActive(active);
                     return projectRepository.save(existing);
                 })
+                .then();
+    }
+
+    @Override
+    public Mono<Void> reorder(List<Long> orderedIds) {
+        return Flux.fromIterable(orderedIds)
+                .index()
+                .flatMap(tuple -> projectRepository.findById(tuple.getT2())
+                        .flatMap(p -> {
+                            p.setDisplayOrder(tuple.getT1().intValue());
+                            return projectRepository.save(p);
+                        }))
                 .then();
     }
 }

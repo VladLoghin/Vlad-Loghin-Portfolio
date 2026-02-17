@@ -5,6 +5,7 @@
 		description: string;
 		tags?: string[];
 		active: boolean;
+		displayOrder?: number;
 	};
 </script>
 
@@ -147,10 +148,88 @@
 
 	function scroll(direction: 'left' | 'right') {
 		if (!scrollContainer) return;
+		const children = Array.from(scrollContainer.children) as HTMLElement[];
+		if (children.length === 0) return;
+
+		const containerRect = scrollContainer.getBoundingClientRect();
+		const centerX = containerRect.left + containerRect.width / 2;
+
+		let closestIdx = 0;
+		let minDist = Infinity;
+		children.forEach((child, i) => {
+			const r = child.getBoundingClientRect();
+			const dist = Math.abs(r.left + r.width / 2 - centerX);
+			if (dist < minDist) { minDist = dist; closestIdx = i; }
+		});
+
+		const nextIdx = direction === 'left'
+			? (closestIdx === 0 ? children.length - 1 : closestIdx - 1)
+			: (closestIdx === children.length - 1 ? 0 : closestIdx + 1);
+
+		const targetRect = children[nextIdx].getBoundingClientRect();
 		scrollContainer.scrollBy({
-			left: direction === 'left' ? -400 : 400,
+			left: targetRect.left + targetRect.width / 2 - centerX,
 			behavior: 'smooth'
 		});
+	}
+
+	let draggedId: string | null = null;
+	let dragOverId: string | null = null;
+
+	function handleDragStart(e: DragEvent, id: string) {
+		draggedId = id;
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, id: string) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		if (id !== draggedId) dragOverId = id;
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	function handleDrop(e: DragEvent, targetId: string) {
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === targetId) return;
+
+		const fromIdx = hobbies.findIndex(h => h.id === draggedId);
+		const toIdx = hobbies.findIndex(h => h.id === targetId);
+		if (fromIdx < 0 || toIdx < 0) return;
+
+		const item = hobbies[fromIdx];
+		hobbies.splice(fromIdx, 1);
+		hobbies.splice(toIdx, 0, item);
+		hobbies = hobbies;
+
+		saveOrder();
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
+
+	async function saveOrder() {
+		const token = await getToken();
+		if (!token) return;
+
+		try {
+			await fetch('/api/hobbies/reorder', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(hobbies.map(h => h.id))
+			});
+		} catch (error) {
+			console.error('Failed to save order:', error);
+			await fetchHobbies();
+		}
 	}
 
 	$: displayItems = $isAdmin ? hobbies : hobbies.filter(h => h.active);
@@ -183,7 +262,18 @@
 	{:else if $isAdmin}
 		<div class="admin-grid">
 			{#each displayItems as hobby (hobby.id)}
-				<article class="card hobby-card grid-card" class:inactive-card={!hobby.active}>
+				<article
+				class="card hobby-card grid-card"
+				class:inactive-card={!hobby.active}
+				class:dragging={draggedId === hobby.id}
+				class:drag-over={dragOverId === hobby.id}
+				draggable="true"
+				on:dragstart={(e) => handleDragStart(e, hobby.id)}
+				on:dragover={(e) => handleDragOver(e, hobby.id)}
+				on:dragleave={handleDragLeave}
+				on:drop={(e) => handleDrop(e, hobby.id)}
+				on:dragend={handleDragEnd}
+			>
 					<h3 class="h3">{hobby.title}</h3>
 					<p class="p muted">{hobby.description}</p>
 
@@ -214,7 +304,6 @@
 		<div class="carousel-wrapper">
 			<button
 				class="carousel-btn carousel-btn--left"
-				class:disabled={!canScrollLeft}
 				on:click={() => scroll('left')}
 				aria-label="Scroll hobbies left"
 			>
@@ -242,7 +331,6 @@
 
 			<button
 				class="carousel-btn carousel-btn--right"
-				class:disabled={!canScrollRight}
 				on:click={() => scroll('right')}
 				aria-label="Scroll hobbies right"
 			>
@@ -312,7 +400,10 @@
 	}
 	@media (max-width: 980px) { .admin-grid { grid-template-columns: repeat(2, 1fr); } }
 	@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
-	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; }
+	.grid-card { flex: unset; max-width: unset; scroll-snap-align: unset; cursor: grab; }
+	.grid-card:active { cursor: grabbing; }
+	.grid-card.dragging { opacity: 0.4; }
+	.grid-card.drag-over { border: 2px dashed rgba(56, 197, 94, 0.6); }
 
 	.carousel-wrapper {
 		display: flex; align-items: center; gap: 16px;
@@ -331,6 +422,7 @@
 	.hobby-card {
 		flex: 0 0 600px; max-width: 600px;
 		scroll-snap-align: center; box-shadow: none;
+		align-self: flex-start;
 	}
 
 	.inactive-card { opacity: 0.6; border: 2px dashed rgba(255, 152, 0, 0.4); }

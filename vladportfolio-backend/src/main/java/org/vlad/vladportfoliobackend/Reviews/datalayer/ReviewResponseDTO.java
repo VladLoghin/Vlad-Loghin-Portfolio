@@ -15,6 +15,7 @@ public class ReviewResponseDTO {
     private String content;
     private int rating;
     private boolean approved;
+    private int displayOrder;
 
     public static ReviewResponseDTO from(Review review) {
         return new ReviewResponseDTO(
@@ -24,7 +25,8 @@ public class ReviewResponseDTO {
                 "",
                 review.getContent(),
                 ratingToInt(review.getRating()),
-                review.isApproved()
+                review.isApproved(),
+                review.getDisplayOrder()
         );
     }
 
