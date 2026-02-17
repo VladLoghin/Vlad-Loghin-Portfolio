@@ -145,21 +145,25 @@
     translateReady = true;
   }
 
+  let translating = false;
+
   function toggleLanguage() {
     const target = currentLang === "en" ? "fr" : "en";
+    translating = true;
 
-    if (target === "en") {
-      // Switching back to English: clear all cookies and reload cleanly
-      clearGoogTransCookies();
-      currentLang = "en";
-      window.location.reload();
-    } else {
-      // Switching to French: set cookie and reload
-      clearGoogTransCookies();
-      document.cookie = "googtrans=/en/fr; path=/";
-      currentLang = "fr";
-      window.location.reload();
-    }
+    // Small delay so the loading overlay renders before reload
+    requestAnimationFrame(() => {
+      if (target === "en") {
+        clearGoogTransCookies();
+        currentLang = "en";
+        window.location.reload();
+      } else {
+        clearGoogTransCookies();
+        document.cookie = "googtrans=/en/fr; path=/";
+        currentLang = "fr";
+        window.location.reload();
+      }
+    });
   }
 
   // --- Profile image ---
@@ -241,22 +245,12 @@
 
   // --- Contact form ---
   let contactName = "";
-  let contactEmail = "";
   let contactMessage = "";
   let contactSending = false;
   let contactStatus: "idle" | "success" | "error" = "idle";
-  let contactEmailError = "";
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   async function handleContactSubmit(e: Event) {
     e.preventDefault();
-    contactEmailError = "";
-
-    if (!emailRegex.test(contactEmail)) {
-      contactEmailError = "Please enter a valid email address.";
-      return;
-    }
 
     contactSending = true;
     contactStatus = "idle";
@@ -267,22 +261,14 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: contactName,
-          email: contactEmail,
+          email: $user?.email,
           message: contactMessage
         })
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        if (res.status === 400 && data?.error) {
-          contactEmailError = data.error;
-          return;
-        }
-        throw new Error("Failed to send");
-      }
+      if (!res.ok) throw new Error("Failed to send");
       contactStatus = "success";
       contactName = "";
-      contactEmail = "";
       contactMessage = "";
     } catch {
       contactStatus = "error";
@@ -351,6 +337,16 @@
 
 <!-- Hidden Google Translate container -->
 <div id="google_translate_element" style="display:none;"></div>
+
+<!-- Translation loading overlay -->
+{#if translating}
+  <div class="translate-overlay">
+    <div class="translate-loader">
+      <div class="translate-spinner"></div>
+      <p>Translating...</p>
+    </div>
+  </div>
+{/if}
 
 <!-- Background -->
 <div class="leaf-bg" aria-hidden="true">
@@ -423,9 +419,16 @@
           {/if}
         </div>
 
-        <!-- Language Toggle -->
-        <button class="lang-toggle" on:click={toggleLanguage} aria-label="Toggle language">
-          {currentLang === "en" ? "FR" : "EN"}
+        <!-- Language Toggle Switch -->
+        <button
+          class="lang-switch"
+          class:fr={currentLang === "fr"}
+          on:click={toggleLanguage}
+          aria-label="Toggle language"
+        >
+          <span class="lang-label lang-en">EN</span>
+          <span class="lang-label lang-fr">FR</span>
+          <span class="lang-knob"></span>
         </button>
 
         <!-- Mobile Hamburger -->
@@ -471,9 +474,19 @@
             {/if}
 
             <!-- Mobile Language Toggle -->
-            <button class="lang-toggle mobile-lang" on:click={toggleLanguage}>
-              {currentLang === "en" ? "Switch to French" : "Switch to English"}
-            </button>
+            <div class="mobile-lang-row">
+              <span class="mobile-lang-label">Language</span>
+              <button
+                class="lang-switch"
+                class:fr={currentLang === "fr"}
+                on:click={toggleLanguage}
+                aria-label="Toggle language"
+              >
+                <span class="lang-label lang-en">EN</span>
+                <span class="lang-label lang-fr">FR</span>
+                <span class="lang-knob"></span>
+              </button>
+            </div>
 
             <div class="mobile-actions">
               {#if $isLoading}
@@ -722,30 +735,30 @@
         <div class="contact-container">
           <article class="card contact-form-card">
             <h3 class="h3">Send me a message</h3>
-            <form class="contact-form" on:submit={handleContactSubmit}>
-              <div class="form-group">
-                <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
-              </div>
-              <div class="form-group">
-                <input class="input" class:input-error={contactEmailError} type="email" placeholder="Your email" required bind:value={contactEmail} on:input={() => contactEmailError = ""} />
-                {#if contactEmailError}
-                  <p class="field-error">{contactEmailError}</p>
-                {/if}
-              </div>
-              <div class="form-group">
-                <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
-              </div>
-              <button class="nav-btn primary" type="submit" disabled={contactSending}>
-                {contactSending ? "Sending..." : "Send message"}
-              </button>
+            {#if $isAuthenticated}
+              <p class="p small muted" style="margin-bottom:12px;">Sending as <strong>{$user?.email}</strong></p>
+              <form class="contact-form" on:submit={handleContactSubmit}>
+                <div class="form-group">
+                  <input class="input" type="text" placeholder="Your name" required bind:value={contactName} />
+                </div>
+                <div class="form-group">
+                  <textarea class="input textarea" placeholder="Tell me about your project..." rows="5" bind:value={contactMessage}></textarea>
+                </div>
+                <button class="nav-btn primary" type="submit" disabled={contactSending}>
+                  {contactSending ? "Sending..." : "Send message"}
+                </button>
 
-              {#if contactStatus === "success"}
-                <p class="contact-success">Message sent! I'll get back to you soon.</p>
-              {/if}
-              {#if contactStatus === "error"}
-                <p class="contact-error">Something went wrong. Please try again or email me directly.</p>
-              {/if}
-            </form>
+                {#if contactStatus === "success"}
+                  <p class="contact-success">Message sent! I'll get back to you soon.</p>
+                {/if}
+                {#if contactStatus === "error"}
+                  <p class="contact-error">Something went wrong. Please try again or email me directly.</p>
+                {/if}
+              </form>
+            {:else}
+              <p class="p muted" style="margin:24px 0;">Log in to send me a message — your email will be filled in automatically.</p>
+              <button class="nav-btn primary" type="button" on:click={login}>Log in to continue</button>
+            {/if}
           </article>
 
           <article class="card contact-info-card">
@@ -812,31 +825,108 @@
     scroll-margin-top: 120px;
   }
 
-  /* --- LANGUAGE TOGGLE --- */
-  .lang-toggle {
-    padding: 6px 14px;
+  /* --- LANGUAGE TOGGLE SWITCH --- */
+  .lang-switch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 64px;
+    height: 30px;
     border-radius: 999px;
     border: 1px solid var(--border);
-    background: rgba(56, 197, 94, 0.1);
+    background: rgba(56, 197, 94, 0.12);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.3s ease;
+  }
+
+  .lang-switch:hover {
+    background: rgba(56, 197, 94, 0.22);
+  }
+
+  .lang-label {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    transition: color 0.3s ease;
+    pointer-events: none;
+    line-height: 30px;
+  }
+
+  .lang-en { color: #fff; }
+  .lang-fr { color: var(--green-d); }
+
+  .lang-switch.fr .lang-en { color: var(--green-d); }
+  .lang-switch.fr .lang-fr { color: #fff; }
+
+  .lang-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .lang-switch.fr .lang-knob {
+    transform: translateX(34px);
+  }
+
+  .mobile-lang-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding: 8px 0;
+  }
+
+  .mobile-lang-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--green-d);
+  }
+
+  /* --- TRANSLATION LOADING OVERLAY --- */
+  .translate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(244, 241, 234, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .translate-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     color: var(--green-d);
     font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    white-space: nowrap;
+    font-size: 1.1rem;
   }
 
-  .lang-toggle:hover {
-    background: rgba(56, 197, 94, 0.2);
-    transform: translateY(-1px);
+  .translate-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(56, 197, 94, 0.2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
   }
 
-  .mobile-lang {
-    width: 100%;
-    padding: 12px 16px;
-    font-size: 0.95rem;
-    border-radius: 8px;
-    margin-top: 8px;
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   /* --- MOBILE MENU --- */

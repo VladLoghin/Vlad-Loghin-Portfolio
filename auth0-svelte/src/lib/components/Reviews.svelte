@@ -64,9 +64,27 @@
 
   function scroll(direction: "left" | "right") {
     if (!scrollContainer) return;
-    const amount = 400;
+    const children = Array.from(scrollContainer.children) as HTMLElement[];
+    if (children.length === 0) return;
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const centerX = containerRect.left + containerRect.width / 2;
+
+    let closestIdx = 0;
+    let minDist = Infinity;
+    children.forEach((child, i) => {
+      const r = child.getBoundingClientRect();
+      const dist = Math.abs(r.left + r.width / 2 - centerX);
+      if (dist < minDist) { minDist = dist; closestIdx = i; }
+    });
+
+    const nextIdx = direction === "left"
+      ? (closestIdx === 0 ? children.length - 1 : closestIdx - 1)
+      : (closestIdx === children.length - 1 ? 0 : closestIdx + 1);
+
+    const targetRect = children[nextIdx].getBoundingClientRect();
     scrollContainer.scrollBy({
-      left: direction === "left" ? -amount : amount,
+      left: targetRect.left + targetRect.width / 2 - centerX,
       behavior: "smooth"
     });
   }
@@ -210,7 +228,6 @@
     <div class="carousel-wrapper">
       <button
         class="carousel-btn carousel-btn--left"
-        class:disabled={!canScrollLeft}
         on:click={() => scroll("left")}
         aria-label="Scroll reviews left"
       >
@@ -244,7 +261,6 @@
 
       <button
         class="carousel-btn carousel-btn--right"
-        class:disabled={!canScrollRight}
         on:click={() => scroll("right")}
         aria-label="Scroll reviews right"
       >
