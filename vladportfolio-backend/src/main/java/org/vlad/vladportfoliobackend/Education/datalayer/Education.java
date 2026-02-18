@@ -15,6 +15,7 @@ public class Education {
     private Long id;
     private String institutionName;
     private String degree;
+    private String years;
     private boolean active = true;
     private Integer displayOrder = 0;
 }

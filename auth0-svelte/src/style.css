@@ -82,6 +82,17 @@
     flutter var(--flt, 2.2s) ease-in-out var(--delay, 0s) infinite;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 100px;
+}
+
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 80px;
+  }
+}
+
 :root{
   --green: #38C55E;
   --green-d: #1F6E36;

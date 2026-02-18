@@ -36,9 +36,15 @@ public class ReviewController {
         return reviewService.changeReviewVisibility(reviewId, approved);
     }
 
-    @PreAuthorize("hasRole('Admin')")    
+    @PreAuthorize("hasRole('Admin')")
     @PutMapping("/reorder")
     public Mono<Void> reorder(@RequestBody List<Long> orderedIds) {
         return reviewService.reorder(orderedIds);
+    }
+
+    @PreAuthorize("hasRole('Admin')")
+    @DeleteMapping("/{id}")
+    public Mono<Void> deleteReviewById(@PathVariable Long id) {
+        return reviewService.deleteReviewById(id);
     }
 }

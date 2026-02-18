@@ -1,10 +1,10 @@
 -- ============ EDUCATION ============
-INSERT INTO education (institution_name, degree, active)
-SELECT 'Champlain College St-Lambert', 'Computer Science', true
+INSERT INTO education (institution_name, degree, years, active)
+SELECT 'Champlain College St-Lambert', 'Computer Science', '2021 - 2024', true
 WHERE NOT EXISTS (SELECT 1 FROM education WHERE institution_name = 'Champlain College St-Lambert');
 
-INSERT INTO education (institution_name, degree, active)
-SELECT 'Self-Study', 'Spring Boot + React + Docker', true
+INSERT INTO education (institution_name, degree, years, active)
+SELECT 'Self-Study', 'Spring Boot + React + Docker', '2024 - Present', true
 WHERE NOT EXISTS (SELECT 1 FROM education WHERE institution_name = 'Self-Study');
 
 -- ============ HOBBIES ============

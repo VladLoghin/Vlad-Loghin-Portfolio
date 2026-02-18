@@ -827,19 +827,7 @@
     top: 0 !important;
   }
 
-  /* --- snap (optional) --- */
-  .snap-container {
-    scroll-behavior: smooth;
-  }
-
-  .snap-container {
-    scroll-snap-type: y proximity;
-  }
-
-  .snap-section {
-    scroll-snap-align: start;
-    scroll-margin-top: 120px;
-  }
+  /* Smooth scroll handled by html { scroll-behavior: smooth } in style.css */
 
   /* --- LANGUAGE TOGGLE SWITCH --- */
   .lang-switch {
@@ -1088,9 +1076,6 @@
       display: block;
     }
 
-    .snap-section {
-      scroll-margin-top: 80px;
-    }
 
   }
 

@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,6 +18,7 @@ public class ReviewResponseDTO {
     private int rating;
     private boolean approved;
     private int displayOrder;
+    private LocalDateTime createdAt;
 
     public static ReviewResponseDTO from(Review review) {
         return new ReviewResponseDTO(
@@ -26,7 +29,8 @@ public class ReviewResponseDTO {
                 review.getContent(),
                 ratingToInt(review.getRating()),
                 review.isApproved(),
-                review.getDisplayOrder()
+                review.getDisplayOrder(),
+                review.getCreatedAt()
         );
     }
 

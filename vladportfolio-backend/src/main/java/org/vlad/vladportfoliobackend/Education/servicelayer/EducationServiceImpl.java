@@ -40,6 +40,7 @@ public class EducationServiceImpl implements EducationService {
                     Education newEducation = new Education();
                     newEducation.setInstitutionName(education.getInstitutionName());
                     newEducation.setDegree(education.getDegree());
+                    newEducation.setYears(education.getYears());
                     newEducation.setDisplayOrder(maxOrder + 1);
                     return educationRepository.save(newEducation);
                 })
@@ -53,6 +54,7 @@ public class EducationServiceImpl implements EducationService {
                 .flatMap(existing -> {
                     existing.setInstitutionName(dto.getInstitutionName());
                     existing.setDegree(dto.getDegree());
+                    existing.setYears(dto.getYears());
                     return educationRepository.save(existing);
                 })
                 .map(EducationResponseDTO::from);

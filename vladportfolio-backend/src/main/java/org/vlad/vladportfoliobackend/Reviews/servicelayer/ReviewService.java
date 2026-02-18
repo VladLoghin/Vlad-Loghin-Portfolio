@@ -16,4 +16,6 @@ public interface ReviewService {
     Mono<Void> changeReviewVisibility(Long reviewId, boolean approved);
 
     Mono<Void> reorder(List<Long> orderedIds);
+
+    Mono<Void> deleteReviewById(Long id);
 }

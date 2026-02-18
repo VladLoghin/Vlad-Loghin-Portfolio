@@ -3,6 +3,7 @@
 		id: string;
 		institutionName: string;
 		degree: string;
+		years?: string;
 		active: boolean;
 		displayOrder?: number;
 	};
@@ -21,7 +22,8 @@
 
 	let formData = {
 		institutionName: '',
-		degree: ''
+		degree: '',
+		years: ''
 	};
 
 	let currentIndex = 0;
@@ -53,7 +55,8 @@
 		editingItem = null;
 		formData = {
 			institutionName: '',
-			degree: ''
+			degree: '',
+			years: ''
 		};
 		showModal = true;
 		lockBodyScroll();
@@ -63,7 +66,8 @@
 		editingItem = item;
 		formData = {
 			institutionName: item.institutionName,
-			degree: item.degree
+			degree: item.degree,
+			years: item.years || ''
 		};
 		showModal = true;
 		lockBodyScroll();
@@ -74,7 +78,8 @@
 		editingItem = null;
 		formData = {
 			institutionName: '',
-			degree: ''
+			degree: '',
+			years: ''
 		};
 		unlockBodyScroll();
 	}
@@ -318,6 +323,9 @@
 					</div>
 					<h3 class="h3 edu-institution">{item.institutionName}</h3>
 					<p class="p muted edu-degree">{item.degree}</p>
+					{#if item.years}
+						<p class="p small muted edu-years">{item.years}</p>
+					{/if}
 
 					<div class="admin-section">
 						<div class="approval-badge {item.active ? 'approved' : 'pending'}">
@@ -368,6 +376,9 @@
 						</div>
 						<h3 class="h3 edu-institution">{item.institutionName}</h3>
 						<p class="p muted edu-degree">{item.degree}</p>
+						{#if item.years}
+							<p class="p small muted edu-years">{item.years}</p>
+						{/if}
 					</article>
 				{/each}
 			</div>
@@ -413,6 +424,15 @@
 						bind:value={formData.degree}
 						placeholder="e.g. Bachelor of Science in Computer Science"
 						required
+					/>
+				</label>
+
+				<label class="label">
+					Years
+					<input
+						class="input modal-input"
+						bind:value={formData.years}
+						placeholder="e.g. 2021 - 2024"
 					/>
 				</label>
 			</div>
@@ -531,7 +551,13 @@
 	}
 
 	.edu-degree {
+		margin: 0 0 8px;
+	}
+
+	.edu-years {
 		margin: 0 0 16px;
+		font-size: 13px;
+		opacity: 0.6;
 	}
 
 	.admin-section {
