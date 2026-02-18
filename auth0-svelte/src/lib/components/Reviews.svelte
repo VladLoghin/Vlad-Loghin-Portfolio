@@ -8,6 +8,7 @@
     rating: number;
     approved: boolean;
     displayOrder?: number;
+    createdAt?: string;
   };
 </script>
 
@@ -33,6 +34,9 @@
   let draftContent = "";
   let draftRating = 5;
   let successOpen = false;
+  let confirmDeleteOpen = false;
+  let deleteTargetId: string | null = null;
+  let deleting = false;
 
   const RATING_MAP: Record<number, string> = {
     1: "ONE", 2: "TWO", 3: "THREE", 4: "FOUR", 5: "FIVE"
@@ -104,7 +108,7 @@
   }
 
   $: if (typeof document !== 'undefined') {
-    if (editOpen || successOpen) {
+    if (editOpen || successOpen || confirmDeleteOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -162,6 +166,39 @@
       await fetchReviews();
     } catch (e: any) {
       console.error("Failed to toggle approval:", e);
+    }
+  }
+
+  function openDeleteConfirm(id: string) {
+    deleteTargetId = id;
+    confirmDeleteOpen = true;
+  }
+
+  function closeDeleteConfirm() {
+    confirmDeleteOpen = false;
+    deleteTargetId = null;
+  }
+
+  async function confirmDeleteReview() {
+    if (!deleteTargetId) return;
+
+    const token = await getToken();
+    if (!token) return;
+
+    deleting = true;
+    try {
+      const res = await fetch(`/api/reviews/${deleteTargetId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error('Failed to delete review');
+      await fetchReviews();
+      closeDeleteConfirm();
+    } catch (e: any) {
+      console.error('Failed to delete review:', e);
+    } finally {
+      deleting = false;
     }
   }
 
@@ -226,7 +263,8 @@
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
-      if (successOpen) closeSuccess();
+      if (confirmDeleteOpen) closeDeleteConfirm();
+      else if (successOpen) closeSuccess();
       else if (editOpen) closeEdit();
     }
   }
@@ -279,10 +317,22 @@
             >
               {review.approved ? "Hide" : "Approve"}
             </button>
+            <button
+              class="btn-delete"
+              type="button"
+              on:click={() => openDeleteConfirm(review.id)}
+            >
+              Delete
+            </button>
           </div>
           <div class="review-meta">
             <p class="p review-name">{review.name}</p>
             <p class="p small muted">{review.role}</p>
+            {#if review.createdAt}
+              <p class="p small muted review-date">
+                {new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            {/if}
           </div>
           <p class="p review-content">{review.content}</p>
           <div class="stars" aria-label="{review.rating} out of 5 stars">
@@ -317,6 +367,11 @@
             <div class="review-meta">
               <p class="p review-name">{review.name}</p>
               <p class="p small muted">{review.role}</p>
+              {#if review.createdAt}
+                <p class="p small muted review-date">
+                  {new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </p>
+              {/if}
             </div>
             <p class="p review-content">{review.content}</p>
             <div class="stars" aria-label="{review.rating} out of 5 stars">
@@ -419,6 +474,29 @@
       </div>
       <div class="modal-actions">
         <button class="btn primary" type="button" on:click={closeSuccess}>Got it</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if confirmDeleteOpen}
+  <div class="modal-layer" role="presentation" on:click={closeDeleteConfirm}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_interactive_supports_focus -->
+    <div class="modal confirm-delete-modal" role="dialog" aria-modal="true" on:click|stopPropagation>
+      <div class="confirm-delete-body">
+        <span class="delete-icon">!</span>
+        <h3 class="h3" style="margin:0;">Delete Review</h3>
+        <p class="p" style="margin:8px 0 0;opacity:0.7;text-align:center;">
+          Are you sure you want to permanently delete this review? This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" type="button" on:click={closeDeleteConfirm} disabled={deleting}>
+          Cancel
+        </button>
+        <button class="btn danger" type="button" on:click={confirmDeleteReview} disabled={deleting}>
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
       </div>
     </div>
   </div>
@@ -640,6 +718,28 @@
     background: rgba(255, 82, 82, 0.3);
   }
 
+  .btn-delete {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 82, 82, 0.15);
+    color: #c62828;
+  }
+
+  .btn-delete:hover {
+    background: rgba(255, 82, 82, 0.3);
+  }
+
+  .review-date {
+    font-size: 12px;
+    opacity: 0.5;
+    margin: 4px 0 0;
+  }
+
   /* ========== MODAL STYLES ========== */
   .modal-layer {
     position: fixed;
@@ -797,5 +897,42 @@
     font-size: 28px;
     font-weight: 700;
     margin-bottom: 16px;
+  }
+
+  /* ========== CONFIRM DELETE MODAL ========== */
+  .confirm-delete-modal {
+    width: min(400px, 100%);
+    text-align: center;
+  }
+
+  .confirm-delete-body {
+    padding: 32px 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .delete-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(255, 82, 82, 0.15);
+    color: #c62828;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .btn.danger {
+    border-color: rgba(255, 82, 82, 0.35);
+    background: rgba(255, 82, 82, 0.16);
+    color: #c62828;
+  }
+
+  .btn.danger:hover:not(:disabled) {
+    background: rgba(255, 82, 82, 0.3);
   }
 </style>

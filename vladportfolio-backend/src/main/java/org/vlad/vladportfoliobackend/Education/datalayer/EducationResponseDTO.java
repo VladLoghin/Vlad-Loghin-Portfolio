@@ -11,6 +11,7 @@ public class EducationResponseDTO {
     private String id;
     private String institutionName;
     private String degree;
+    private String years;
     private boolean active;
     private int displayOrder;
 
@@ -19,6 +20,7 @@ public class EducationResponseDTO {
                 String.valueOf(education.getId()),
                 education.getInstitutionName(),
                 education.getDegree(),
+                education.getYears(),
                 education.isActive(),
                 education.getDisplayOrder()
         );

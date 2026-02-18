@@ -8,6 +8,7 @@ import org.vlad.vladportfoliobackend.Reviews.repositorylayer.ReviewRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -38,6 +39,7 @@ public class ReviewServiceImpl implements ReviewService {
                     newReview.setRating(request.getRating().name());
                     newReview.setApproved(false);
                     newReview.setDisplayOrder(maxOrder + 1);
+                    newReview.setCreatedAt(LocalDateTime.now());
                     return reviewRepository.save(newReview);
                 })
                 .map(ReviewResponseDTO::from);
@@ -64,5 +66,10 @@ public class ReviewServiceImpl implements ReviewService {
                             return reviewRepository.save(r);
                         }))
                 .then();
+    }
+
+    @Override
+    public Mono<Void> deleteReviewById(Long id) {
+        return reviewRepository.deleteById(id);
     }
 }

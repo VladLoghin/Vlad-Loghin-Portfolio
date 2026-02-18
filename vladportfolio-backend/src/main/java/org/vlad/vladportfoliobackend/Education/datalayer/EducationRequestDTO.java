@@ -8,5 +8,5 @@ import lombok.Setter;
 public class EducationRequestDTO {
     private String institutionName;
     private String degree;
-
+    private String years;
 }

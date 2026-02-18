@@ -4,6 +4,8 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
+import java.time.LocalDateTime;
+
 @Data
 @Getter
 @Setter
@@ -18,4 +20,5 @@ public class Review {
     private String rating;
     private boolean approved = false;
     private Integer displayOrder = 0;
+    private LocalDateTime createdAt;
 }
