@@ -93,6 +93,30 @@
   let rippleActive = false;
   let mobileMenuOpen = false;
 
+  // --- Navbar auto-hide ---
+  let navHidden = false;
+  let navHovering = false;
+
+  function handleScroll() {
+    if (window.scrollY <= 80) {
+      navHidden = false;
+    } else if (!navHovering) {
+      navHidden = true;
+    }
+  }
+
+  function handleNavAreaEnter() {
+    navHovering = true;
+    navHidden = false;
+  }
+
+  function handleNavAreaLeave() {
+    navHovering = false;
+    if (window.scrollY > 80) {
+      navHidden = true;
+    }
+  }
+
   // --- Language toggle ---
   let currentLang: "en" | "fr" = "en";
   let translateReady = false;
@@ -328,9 +352,12 @@
       }
     }, 50);
 
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
       clearInterval(t);
       cleanup?.();
+      window.removeEventListener('scroll', handleScroll);
     };
   });
 </script>
@@ -396,8 +423,27 @@
   </section>
 {:else}
   <div class="content-reveal">
+    <!-- Invisible hover zone to reveal navbar -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="nav-hover-zone"
+      on:mouseenter={handleNavAreaEnter}
+    >
+      <div class="nav-hint" class:visible={navHidden}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </div>
+    </div>
+
     <!-- Header -->
-    <header class="site-header">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <header
+      class="site-header"
+      class:nav-hidden={navHidden}
+      on:mouseenter={handleNavAreaEnter}
+      on:mouseleave={handleNavAreaLeave}
+    >
       <nav class="nav-shell">
         <a class="brand" href="#about" on:click={closeMobileMenu}>
           <span class="brand-dot"></span>
@@ -814,6 +860,48 @@
 {/if}
 
 <style>
+  /* Invisible hover zone at top of viewport to reveal navbar */
+  .nav-hover-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 15px;
+    z-index: 51;
+  }
+
+  .nav-hint {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+  }
+
+  .nav-hint.visible {
+    opacity: 0.75;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .nav-hover-zone:hover .nav-hint.visible {
+    opacity: 1;
+  }
+
+  .nav-hint svg {
+    width: 28px;
+    height: 28px;
+    color: var(--green);
+    filter: drop-shadow(0 1px 3px rgba(56, 197, 94, 0.4));
+    animation: hint-bounce 1.5s ease-in-out infinite;
+  }
+
+  @keyframes hint-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+  }
+
   :global(.ripple-active) {
     position: relative;
     overflow: hidden;
