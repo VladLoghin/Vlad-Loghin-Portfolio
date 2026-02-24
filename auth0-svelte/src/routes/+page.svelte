@@ -1066,7 +1066,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     z-index: 99;
     animation: fadeIn 0.2s ease;
   }
@@ -1084,30 +1084,33 @@
     background: white;
     position: absolute;
     top: 0;
-    right: 0;
-    width: 100%;
-    max-width: 300px;
-    height: 100vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 36px);
+    max-height: 100%;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    padding: 24px;
-    gap: 16px;
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
-    animation: slideIn 0.3s ease;
+    padding: 16px 24px 32px;
+    gap: 4px;
+    border-radius: 0 0 var(--radius, 16px) var(--radius, 16px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    animation: slideDown 0.3s ease;
   }
 
-  @keyframes slideIn {
+  @keyframes slideDown {
     from {
-      transform: translateX(100%);
+      opacity: 0;
+      transform: translateX(-50%) translateY(-10px);
     }
     to {
-      transform: translateX(0);
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   }
 
   .mobile-link {
-    padding: 12px 16px;
+    padding: 8px 16px;
     text-decoration: none;
     color: #333;
     font-weight: 500;
@@ -1136,10 +1139,10 @@
   .mobile-actions {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 24px;
+    gap: 10px;
+    margin-top: 12px;
     border-top: 1px solid #e0e0e0;
-    padding-top: 24px;
+    padding-top: 16px;
   }
 
   .mobile-actions .nav-btn {
