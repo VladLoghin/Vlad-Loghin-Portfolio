@@ -9,6 +9,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -39,7 +40,7 @@ public class ReviewServiceImpl implements ReviewService {
                     newReview.setRating(request.getRating().name());
                     newReview.setApproved(false);
                     newReview.setDisplayOrder(maxOrder + 1);
-                    newReview.setCreatedAt(LocalDateTime.now());
+                    newReview.setCreatedAt(LocalDateTime.now(ZoneId.of("America/Montreal")));
                     return reviewRepository.save(newReview);
                 })
                 .map(ReviewResponseDTO::from);
