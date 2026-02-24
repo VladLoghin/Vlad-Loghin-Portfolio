@@ -111,10 +111,17 @@ html {
 
 /* Header wrapper */
 .site-header{
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
   padding: 14px 18px;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.site-header.nav-hidden {
+  transform: translateY(-100%);
 }
 
 /* Navbar container */
@@ -794,6 +801,7 @@ html {
 /* Content reveal with staggered sections */
 .content-reveal {
   animation: fadeIn .6s ease forwards;
+  padding-top: 80px; /* offset for fixed navbar */
 }
 
 @keyframes fadeIn {

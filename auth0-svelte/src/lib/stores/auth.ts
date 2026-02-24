@@ -67,15 +67,6 @@ export async function initializeAuth() {
       const userData = await client.getUser();
       user.set(userData || null);
 
-      console.log('Full user object:', userData);
-
-      // Debug: log all keys to find roles
-      Object.keys(userData || {}).forEach(key => {
-        if (key.includes('role') || key.includes('admin')) {
-          console.log(`Found key: ${key}`, userData?.[key as keyof typeof userData]);
-        }
-      });
-
       let roles: string[] = [];
       
       const namespace = 'https://vladloghin.codes/roles';
@@ -94,10 +85,6 @@ export async function initializeAuth() {
       }
 
       userRoles.set(Array.isArray(roles) ? roles : []);
-      
-      console.log('Full user object:', userData);
-      console.log('Looking for namespace:', namespace);
-      console.log('Extracted roles:', Array.isArray(roles) ? roles : []);
     }
 
     error.set(null);
@@ -116,11 +103,6 @@ export async function login() {
     return;
   }
   try {
-    console.log('Redirecting to Auth0...', {
-      domain: import.meta.env.VITE_AUTH0_DOMAIN,
-      clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
-      audience: import.meta.env.VITE_AUTH0_AUDIENCE
-    });
     await client.loginWithRedirect();
   } catch (err) {
     console.error('loginWithRedirect failed:', err);
