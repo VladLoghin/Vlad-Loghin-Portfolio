@@ -31,7 +31,7 @@ public class CvController {
     @PreAuthorize("hasRole('Admin')")
     @PostMapping("/cv/upload")
     public Mono<ResponseEntity<Void>> uploadCv(
-            @RequestParam String lang,
+            @RequestPart("lang") String lang,
             @RequestPart("file") FilePart file) {
         return cvService.uploadCv(lang, file)
                 .then(Mono.just(ResponseEntity.ok().<Void>build()));
